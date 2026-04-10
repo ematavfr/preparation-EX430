@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RHACS EX430 — Diagrammes</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #0f1117;
+  color: #e2e8f0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+}
+h1 {
+  font-size: 2rem;
+  margin-bottom: 8px;
+  background: linear-gradient(90deg, #e00, #ff6b6b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.subtitle {
+  color: #94a3b8;
+  margin-bottom: 40px;
+  font-size: 0.95rem;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  width: 100%;
+  max-width: 1100px;
+}
+.card {
+  background: #1e2130;
+  border: 1px solid #2d3250;
+  border-radius: 12px;
+  padding: 24px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.card:hover {
+  border-color: #cc0000;
+  transform: translateY(-2px);
+}
+.card h2 { font-size: 1rem; margin-bottom: 8px; color: #f1f5f9; }
+.card p  { font-size: 0.82rem; color: #64748b; }
+.tag {
+  display: inline-block;
+  background: #cc000022;
+  color: #ff6b6b;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+</style>
+</head>
+<body>
+<h1>RHACS EX430</h1>
+<p class="subtitle">Red Hat Certified Specialist in OpenShift Advanced Cluster Security — Diagrammes de révision</p>
+<div class="grid" id="cards"></div>
+<script>
+const diagrams = [
+  /* Les entrées seront ajoutées au fil de la préparation */
+];
+const grid = document.getElementById('cards');
+diagrams.forEach(d => {
+  grid.innerHTML += `
+    <a class="card" href="${d.file}">
+      <div class="tag">${d.tag}</div>
+      <h2>${d.title}</h2>
+      <p>${d.desc}</p>
+    </a>`;
+});
+if (!diagrams.length) {
+  grid.innerHTML = '<p style="color:#64748b;grid-column:1/-1;text-align:center">Diagrammes à venir au fil de la préparation.</p>';
+}
+</script>
+</body>
+</html>
