@@ -1,0 +1,45 @@
+EX430 — Red Hat Certified Specialist in OpenShift Advanced Cluster Security
+==========================================================================
+
+Section 1 — Import secured clusters into RHACS
+  1.1 Investigate the architecture of RHACS and its components
+  1.2 Deploy the RHACS operator
+  1.3 Configure RHACS Central and its components so RHACS can monitor and audit them
+
+Section 2 — Manage Vulnerabilities with RHACS
+  2.1 Manage vulnerability data sources and scanning
+  2.2 Detect Common Vulnerabilities and Exposures (CVE)
+  2.3 Understand CVE Categories
+  2.4 Understand the vulnerability deferral process
+  2.5 Generate vulnerability reports
+  2.6 Interpret vulnerability results
+  2.7 Manage vulnerability notifications
+  2.8 Assess risk in deployments
+
+Section 3 — Manage Policies with RHACS
+  3.1 Manage default security policies
+  3.2 Examine policy violations
+  3.3 Understand the admission controller enforcement
+  3.4 Enforce deploy-time policies on a secured cluster
+  3.5 Enforce runtime policies on a secured cluster
+
+Section 4 — Manage network segmentation with RHACS
+  4.1 Analyze network traffic with the network graph
+  4.2 Manage network baselines
+  4.3 Audit listening endpoints
+  4.4 Manage network policies
+  4.5 Manage build-time policy generation and enforcement
+
+Section 5 — Manage compliance to industry standards with RHACS
+  5.1 Deploy the Compliance Operator on a secured cluster
+  5.2 Manage compliance
+  5.3 Manipulate compliance reports
+  5.4 Configure tailored profiles
+
+Section 6 — Apply third-party integrations with RHACS
+  6.1 Integrate external private image registries
+  6.2 Troubleshoot common issues with integration
+  6.3 Integrate an OIDC provider for authentication
+  6.4 Integrate object storage for managing backups
+  6.5 Use s3cmd tool to consult buckets
+  6.6 Backup and restore custom deployment

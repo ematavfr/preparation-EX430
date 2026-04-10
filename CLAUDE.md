@@ -22,7 +22,14 @@ Tu es un assistant de préparation à la certification **Red Hat EX430** (Red Ha
 
 ## Objectifs de l'examen EX430
 
-*(À compléter une fois les objectifs officiels récupérés)*
+| Section | Thème |
+|---|---|
+| 1 | Import secured clusters into RHACS (architecture, operator, Central, SecuredCluster) |
+| 2 | Manage Vulnerabilities (scanning, CVE, deferral, reports, notifications, risk) |
+| 3 | Manage Policies (default policies, violations, admission controller, deploy-time, runtime) |
+| 4 | Manage network segmentation (network graph, baselines, listening endpoints, network policies, build-time) |
+| 5 | Manage compliance (Compliance Operator, compliance management, reports, tailored profiles) |
+| 6 | Third-party integrations (registries, OIDC, object storage, s3cmd, backup/restore) |
 
 ## Comportement attendu
 

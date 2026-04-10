@@ -12,7 +12,7 @@ from pinecone import Pinecone
 
 PINECONE_KEY = os.environ.get("PINECONE_API_KEY") or open(os.path.expanduser("~/preparation-EX430/pinecone")).read().strip()
 INDEX_NAME   = "rhacs-knowledge-base"
-PDF_PATH     = "/home/ematav/preparation-EX430/DO430_OpenShift_Advanced_Cluster_Security.pdf"
+PDF_PATH     = "/home/ematav/preparation-EX430/DO430_Securing_Kubernetes_Clusters_with_Red_Hat_Advanced_Cluster_Security_en_4.6.pdf"
 CHUNK_SIZE   = 800
 CHUNK_OVERLAP= 100
 BATCH_SIZE   = 90   # max records par upsert (integrated inference)

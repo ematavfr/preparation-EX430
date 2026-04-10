@@ -1,0 +1,42 @@
+Import secured clusters into Red Hat Advanced Cluster Security for Kubernetes (RHACS)
+   Investigate the architecture of RHACS and its components
+   Deploy the RHACS operator
+   Configure RHACS Central and its components so RHACS can monitor and audit them
+
+Manage Vulnerabilities with RHACS
+   Manage vulnerability data sources and scanning
+   Detect Common Vulnerabilities and Exposures (CVE)
+   Understand CVE Categories
+   Understand the vulnerability deferral process
+   Generate vulnerability reports
+   Interpret vulnerability results
+   Manage vulnerability notifications
+   Assess risk in deployments
+
+Manage Policies with RHACS
+   Manage default security policies
+   Examine policy violations
+   Understand the admission controller enforcement
+   Enforce deploy-time policies on a secured cluster
+   Enforce runtime policies on a secured cluster
+
+Manage network segmentation with RHACS
+   Analyze network traffic with the network graph
+   Manage network baselines
+   Audit listening endpoints
+   Manage network policies
+   Manage build-time policy generation and enforcement
+
+Manage compliance to industry standards with RHACS
+   Deploy the Compliance Operator on a secured cluster
+   Manage compliance
+   Manipulate compliance reports
+   Configure tailored profiles
+
+Apply third-party integrations with RHACS
+   Integrate external private image registries
+   Troubleshoot common issues with integration
+   Integrate an OIDC provider for authentication
+   Integrate object storage for managing backups
+   Use s3cmd tool to consult buckets
+   Backup and restore custom deployment
