@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compliance Stack — RHACS</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+header {
+  background: linear-gradient(135deg, #1a1f2e, #2d0a0a);
+  padding: 24px 40px;
+  border-bottom: 2px solid #cc0000;
+  display: flex; align-items: center; justify-content: space-between;
+}
+header h1 { font-size: 1.8rem; color: #ef4444; }
+header p  { color: #94a3b8; margin-top: 6px; font-size: 0.95rem; }
+.home-btn {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  background: #1a1f2e; border: 2px solid #374151;
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; font-size: 1.3rem;
+  transition: all 0.2s; cursor: pointer;
+}
+.home-btn:hover { border-color: #f97316; background: #2d1a0a; transform: scale(1.12); }
+
+nav {
+  display: flex; gap: 8px; padding: 16px 40px;
+  background: #1a1f2e; border-bottom: 1px solid #2d3748; flex-wrap: wrap;
+}
+nav button {
+  padding: 8px 18px; border-radius: 20px; border: 1px solid #cc0000;
+  background: transparent; color: #ef4444; cursor: pointer; font-size: 0.85rem;
+  transition: all 0.2s;
+}
+nav button:hover, nav button.active { background: #cc0000; color: white; }
+
+.section { display: none; padding: 32px 40px; max-width: 1200px; margin: 0 auto; }
+.section.active { display: block; }
+h2 { font-size: 1.3rem; color: #ef4444; margin-bottom: 20px; }
+h3 { font-size: 1rem; color: #7dd3fc; margin-bottom: 12px; }
+
+#tooltip {
+  position: fixed; background: #1e293b; border: 1px solid #cc0000;
+  border-radius: 10px; padding: 16px 20px; max-width: 380px;
+  font-size: 0.85rem; line-height: 1.6; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s; z-index: 200; color: #e2e8f0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+#tooltip h4 { color: #ef4444; margin-bottom: 8px; }
+#tooltip code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #7dd3fc; }
+#tooltip .tip-badge {
+  display: inline-block; background: #7f1d1d; color: #fca5a5;
+  font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px;
+}
+
+/* ══ SECTION 1 : Stack ══ */
+.stack {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  max-width: 780px; margin: 0 auto 36px;
+}
+.stack-node {
+  width: 100%; border-radius: 14px; padding: 18px 22px;
+  border: 2px solid; cursor: pointer; transition: all 0.2s;
+}
+.stack-node:hover { transform: scale(1.015); }
+
+.sn-operator  { background: #0f1f3d22; border-color: #1d4ed8; }
+.sn-setting   { background: #14532d22; border-color: #15803d; }
+.sn-binding   { background: #2d1a4422; border-color: #7c3aed; }
+.sn-profile   { background: #422006 22; border-color: #c2410c; }
+.sn-tailored  { background: #0c4a6e22; border-color: #0e7490; }
+
+.stack-arrow {
+  display: flex; align-items: center; gap: 8px; padding: 6px 0;
+  font-size: 0.72rem; color: #64748b;
+}
+.stack-arrow .sa-line { width: 2px; height: 24px; background: #374151; margin: 0 auto; }
+.stack-arrow .sa-tip  {
+  width: 0; height: 0; border-left: 7px solid transparent;
+  border-right: 7px solid transparent; border-top: 10px solid #374151; margin: 0 auto;
+}
+.sa-label {
+  font-size: 0.68rem; color: #4b5563; background: #1a1f2e;
+  padding: 2px 10px; border-radius: 8px; border: 1px solid #2d3748;
+  white-space: nowrap; text-align: center;
+}
+
+.sn-header { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.sn-icon   { font-size: 1.8rem; flex-shrink: 0; }
+.sn-title  { font-size: 1rem; font-weight: 700; }
+.sn-operator .sn-title  { color: #93c5fd; }
+.sn-setting .sn-title   { color: #86efac; }
+.sn-binding .sn-title   { color: #c084fc; }
+.sn-profile .sn-title   { color: #fb923c; }
+.sn-tailored .sn-title  { color: #7dd3fc; }
+.sn-kind   { font-size: 0.7rem; color: #64748b; font-family: monospace; margin-top: 2px; }
+
+.sn-body { font-size: 0.78rem; color: #94a3b8; line-height: 1.5; }
+.sn-body li { margin-left: 14px; margin-bottom: 3px; }
+.sn-badge {
+  display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 8px;
+  font-size: 0.68rem; background: #0f172a; color: #64748b;
+}
+
+/* Cluster warning strip */
+.warning-strip {
+  background: #431407 22; border: 1px solid #c2410c; border-radius: 10px;
+  padding: 12px 16px; font-size: 0.82rem; color: #fdba74;
+  max-width: 780px; margin: 0 auto 28px; text-align: center;
+}
+
+/* ══ SECTION 2 : YAML ══ */
+.yaml-tabs { display: flex; gap: 4px; margin-bottom: 0; }
+.yaml-tab {
+  padding: 8px 18px; border-radius: 8px 8px 0 0; font-size: 0.82rem;
+  cursor: pointer; border: 1px solid #374151; border-bottom: none;
+  background: #1a1f2e; color: #64748b; transition: all 0.2s;
+}
+.yaml-tab.active { background: #0f172a; color: #7dd3fc; border-color: #1d4ed8; }
+.yaml-pane { display: none; }
+.yaml-pane.active { display: block; }
+
+.yaml-box {
+  background: #0f172a; border-radius: 0 12px 12px 12px; padding: 20px 24px;
+  border: 1px solid #374151; font-family: monospace; font-size: 0.82rem;
+  line-height: 1.9; overflow-x: auto; margin-bottom: 20px;
+}
+.y-key     { color: #7dd3fc; }
+.y-val     { color: #86efac; }
+.y-str     { color: #fcd34d; }
+.y-comment { color: #4b5563; }
+.y-num     { color: #c084fc; }
+.y-anno    { color: #fb923c; cursor: pointer; text-decoration: underline dotted; }
+
+/* ══ SECTION 3 : Dashboard ══ */
+.standards-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px;
+  margin-bottom: 28px;
+}
+.std-card {
+  background: #1a1f2e; border-radius: 12px; padding: 16px 18px;
+  border-left: 4px solid; cursor: pointer; transition: all 0.2s;
+}
+.std-card:hover { transform: translateX(4px); }
+.std-card.cis     { border-left-color: #1d4ed8; }
+.std-card.hipaa   { border-left-color: #15803d; }
+.std-card.nist190 { border-left-color: #7c3aed; }
+.std-card.nist53  { border-left-color: #c2410c; }
+.std-card.pci     { border-left-color: #b45309; }
+
+.std-name  { font-weight: 700; font-size: 0.9rem; color: #f1f5f9; margin-bottom: 4px; }
+.std-full  { font-size: 0.72rem; color: #64748b; margin-bottom: 8px; }
+.std-focus { font-size: 0.78rem; color: #94a3b8; }
+
+.dashboard-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px;
+  margin-bottom: 28px;
+}
+.dash-widget {
+  background: #1a1f2e; border-radius: 12px; padding: 16px;
+  border: 1px solid #2d3748; cursor: pointer; transition: all 0.2s; text-align: center;
+}
+.dash-widget:hover { border-color: #cc0000; transform: translateY(-2px); }
+.dw-icon  { font-size: 1.8rem; margin-bottom: 8px; }
+.dw-title { font-size: 0.88rem; font-weight: 600; color: #e2e8f0; margin-bottom: 4px; }
+.dw-sub   { font-size: 0.75rem; color: #64748b; }
+
+/* ══ SECTION 4 : TailoredProfile ══ */
+.tp-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px;
+}
+.tp-card {
+  background: #1a1f2e; border-radius: 12px; padding: 18px;
+  border: 1px solid #2d3748; cursor: pointer; transition: all 0.2s;
+}
+.tp-card:hover { border-color: #0e7490; transform: translateY(-2px); }
+.tp-title { font-size: 0.9rem; font-weight: 600; color: #7dd3fc; margin-bottom: 8px; }
+.tp-body  { font-size: 0.78rem; color: #94a3b8; line-height: 1.6; }
+.tp-body code { color: #fcd34d; font-size: 0.75rem; }
+.tp-warn  { font-size: 0.72rem; color: #f97316; margin-top: 6px; }
+
+.cmd-block {
+  background: #0f172a; border-radius: 10px; padding: 16px 18px;
+  font-family: monospace; font-size: 0.82rem; line-height: 1.8;
+  border: 1px solid #374151; margin-bottom: 14px; overflow-x: auto;
+}
+.cmd-comment { color: #4b5563; }
+.cmd-kw  { color: #7dd3fc; }
+.cmd-str { color: #fcd34d; }
+.cmd-flag{ color: #c084fc; }
+
+.exam-box {
+  background: #0f172a; border: 1px solid #cc0000; border-radius: 12px;
+  padding: 20px 24px; margin-top: 24px;
+}
+.exam-box h3 { color: #ef4444; margin-bottom: 12px; }
+.exam-box li { font-size: 0.85rem; color: #94a3b8; margin-left: 20px; margin-bottom: 6px; line-height: 1.5; }
+.exam-box strong { color: #e2e8f0; }
+.exam-box code { color: #7dd3fc; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<header>
+  <div>
+    <h1>Compliance Stack — RHACS</h1>
+    <p>Compliance Operator · ScanSetting · ScanSettingBinding · TailoredProfile</p>
+  </div>
+  <a class="home-btn" href="index.html" title="Retour au menu">🏠</a>
+</header>
+
+<nav>
+  <button class="active" onclick="show('stack', this)">Stack complète</button>
+  <button onclick="show('yaml', this)">YAML des ressources</button>
+  <button onclick="show('dashboard', this)">Dashboard RHACS</button>
+  <button onclick="show('tailored', this)">TailoredProfile</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 1 : Stack complète                             -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="stack" class="section active">
+  <h2>Stack Compliance — de l'Operator au scan</h2>
+
+  <div class="warning-strip" data-tip="install-both">
+    ⚠️ Le Compliance Operator doit être installé sur le <strong>cluster Central ET sur chaque cluster managé</strong>
+  </div>
+
+  <div class="stack">
+
+    <!-- Operator -->
+    <div class="stack-node sn-operator" data-tip="operator">
+      <div class="sn-header">
+        <span class="sn-icon">⚙️</span>
+        <div>
+          <div class="sn-title">Compliance Operator</div>
+          <div class="sn-kind">OperatorHub → openshift-compliance</div>
+        </div>
+      </div>
+      <div class="sn-body">
+        <ul>
+          <li>Installé depuis <strong>OperatorHub</strong> sur chaque cluster</li>
+          <li>Namespace : <code>openshift-compliance</code></li>
+          <li>Fournit les CRD : ScanSetting, ScanSettingBinding, TailoredProfile, ComplianceScan…</li>
+          <li>Exécute les scans via des pods sur les nœuds (master et worker)</li>
+        </ul>
+        <div class="sn-badge">Namespace : openshift-compliance</div>
+      </div>
+    </div>
+
+    <div class="stack-arrow">
+      <div style="width:100%;text-align:center">
+        <div class="sa-line"></div>
+        <div class="sa-tip"></div>
+        <div class="sa-label">configure</div>
+      </div>
+    </div>
+
+    <!-- ScanSetting -->
+    <div class="stack-node sn-setting" data-tip="scansetting">
+      <div class="sn-header">
+        <span class="sn-icon">⏱️</span>
+        <div>
+          <div class="sn-title">ScanSetting</div>
+          <div class="sn-kind">kind: ScanSetting</div>
+        </div>
+      </div>
+      <div class="sn-body">
+        <ul>
+          <li>Définit <strong>quand</strong> et <strong>comment</strong> scanner</li>
+          <li><code>schedule</code> — cron expression (ex: <code>0 1 * * *</code>)</li>
+          <li><code>roles</code> — nœuds ciblés : <code>master</code>, <code>worker</code></li>
+          <li><code>rawResultStorage.size</code> — taille de stockage des résultats</li>
+          <li><code>autoApplyRemediations</code> — appliquer les remédiation auto</li>
+        </ul>
+        <div class="sn-badge">Namespace : openshift-compliance</div>
+      </div>
+    </div>
+
+    <div class="stack-arrow">
+      <div style="width:100%;text-align:center">
+        <div class="sa-line"></div>
+        <div class="sa-tip"></div>
+        <div class="sa-label">référencé par</div>
+      </div>
+    </div>
+
+    <!-- ScanSettingBinding -->
+    <div class="stack-node sn-binding" data-tip="binding">
+      <div class="sn-header">
+        <span class="sn-icon">🔗</span>
+        <div>
+          <div class="sn-title">ScanSettingBinding</div>
+          <div class="sn-kind">kind: ScanSettingBinding</div>
+        </div>
+      </div>
+      <div class="sn-body">
+        <ul>
+          <li>Lie un <strong>ScanSetting</strong> à un ou plusieurs profils</li>
+          <li>Champ <code>settingsRef</code> → nom du ScanSetting</li>
+          <li>Champ <code>profiles</code> → liste des profils (Profile ou TailoredProfile)</li>
+          <li>Déclenchement via : <code>oc compliance bind</code></li>
+          <li>Crée un <strong>ComplianceScan</strong> pour chaque profil</li>
+        </ul>
+        <div class="sn-badge">Namespace : openshift-compliance</div>
+      </div>
+    </div>
+
+    <div class="stack-arrow">
+      <div style="width:100%;text-align:center">
+        <div class="sa-line"></div>
+        <div class="sa-tip"></div>
+        <div class="sa-label">pointe vers</div>
+      </div>
+    </div>
+
+    <!-- Profile / TailoredProfile -->
+    <div style="display:flex;gap:16px;width:100%">
+      <div class="stack-node sn-profile" data-tip="profile" style="flex:1">
+        <div class="sn-header">
+          <span class="sn-icon">📋</span>
+          <div>
+            <div class="sn-title">Profile</div>
+            <div class="sn-kind">kind: Profile</div>
+          </div>
+        </div>
+        <div class="sn-body">
+          <ul>
+            <li>Profil de conformité standard (fourni par l'Operator)</li>
+            <li>Ex : <code>ocp4-cis</code>, <code>ocp4-pci-dss</code></li>
+            <li>Non modifiable directement</li>
+            <li>Référencé par <code>kind: Profile</code> dans le binding</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="stack-node sn-tailored" data-tip="tailored" style="flex:1">
+        <div class="sn-header">
+          <span class="sn-icon">✂️</span>
+          <div>
+            <div class="sn-title">TailoredProfile</div>
+            <div class="sn-kind">kind: TailoredProfile</div>
+          </div>
+        </div>
+        <div class="sn-body">
+          <ul>
+            <li>Profil personnalisé basé sur un profil existant</li>
+            <li><code>extends</code> → profil source</li>
+            <li><code>disableRules</code> / <code>enableRules</code></li>
+            <li><code>setValues</code> → modifier les variables</li>
+            <li>Référencé par <code>kind: TailoredProfile</code> dans le binding</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="exam-box" style="max-width:780px;margin:0 auto">
+    <h3>Points clés — stack</h3>
+    <ul>
+      <li>Ordre : <strong>Operator → ScanSetting → ScanSettingBinding → Profile/TailoredProfile</strong></li>
+      <li>Compliance Operator sur <strong>Central ET managed clusters</strong></li>
+      <li>Namespace unique : <strong>openshift-compliance</strong></li>
+      <li>Déclencher un scan : <code>oc compliance bind</code> ou créer un ScanSettingBinding</li>
+      <li>Dans le binding : Profile → <code>kind: Profile</code>, TailoredProfile → <code>kind: TailoredProfile</code></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 2 : YAML                                       -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="yaml" class="section">
+  <h2>YAML des ressources Compliance</h2>
+
+  <div class="yaml-tabs">
+    <div class="yaml-tab active" onclick="switchYaml('ss', this)">ScanSetting</div>
+    <div class="yaml-tab" onclick="switchYaml('ssb', this)">ScanSettingBinding</div>
+    <div class="yaml-tab" onclick="switchYaml('tp', this)">TailoredProfile</div>
+  </div>
+
+  <div id="yaml-ss" class="yaml-pane active">
+    <div class="yaml-box">
+<span class="y-key">apiVersion</span>: <span class="y-str">compliance.openshift.io/v1alpha1</span><br>
+<span class="y-key">kind</span>: <span class="y-str">ScanSetting</span><br>
+<span class="y-key">metadata</span>:<br>
+&nbsp;&nbsp;<span class="y-key">name</span>: <span class="y-str">my-scan-setting</span><br>
+&nbsp;&nbsp;<span class="y-key">namespace</span>: <span class="y-str">openshift-compliance</span><br>
+<span class="y-key">spec</span>:<br>
+&nbsp;&nbsp;<span class="y-anno" data-tip="y-schedule"><span class="y-key">schedule</span>: <span class="y-str">"0 1 * * *"</span></span>&nbsp;&nbsp;<span class="y-comment"># Tous les jours à 1h UTC</span><br>
+&nbsp;&nbsp;<span class="y-anno" data-tip="y-roles"><span class="y-key">roles</span>:</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-comment"># Nœuds ciblés par le scan</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="y-str">master</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="y-str">worker</span><br>
+&nbsp;&nbsp;<span class="y-anno" data-tip="y-storage"><span class="y-key">rawResultStorage</span>:</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">size</span>: <span class="y-str">"1Gi"</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">rotation</span>: <span class="y-num">3</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-comment"># Nombre de scans conservés</span><br>
+&nbsp;&nbsp;<span class="y-anno" data-tip="y-remediation"><span class="y-key">autoApplyRemediations</span>: <span class="y-val">false</span></span>&nbsp;<span class="y-comment"># Jamais en prod sans test !</span><br>
+&nbsp;&nbsp;<span class="y-key">autoUpdateRemediations</span>: <span class="y-val">false</span>
+    </div>
+  </div>
+
+  <div id="yaml-ssb" class="yaml-pane">
+    <div class="yaml-box">
+<span class="y-key">apiVersion</span>: <span class="y-str">compliance.openshift.io/v1alpha1</span><br>
+<span class="y-key">kind</span>: <span class="y-str">ScanSettingBinding</span><br>
+<span class="y-key">metadata</span>:<br>
+&nbsp;&nbsp;<span class="y-key">name</span>: <span class="y-str">my-binding</span><br>
+&nbsp;&nbsp;<span class="y-key">namespace</span>: <span class="y-str">openshift-compliance</span><br>
+<span class="y-key">spec</span>:<br>
+&nbsp;&nbsp;<span class="y-anno" data-tip="y-settingsref"><span class="y-key">settingsRef</span>:</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">name</span>: <span class="y-str">my-scan-setting</span>&nbsp;<span class="y-comment"># Référence au ScanSetting</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">kind</span>: <span class="y-str">ScanSetting</span><br>
+&nbsp;&nbsp;<span class="y-anno" data-tip="y-profiles"><span class="y-key">profiles</span>:</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-comment"># Profil standard</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="y-key">name</span>: <span class="y-str">ocp4-cis</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">kind</span>: <span class="y-str">Profile</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-comment"># ← kind: Profile</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">apiGroup</span>: <span class="y-str">compliance.openshift.io/v1alpha1</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-comment"># Profil personnalisé</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="y-key">name</span>: <span class="y-str">my-tailored-profile</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-anno" data-tip="y-tp-kind"><span class="y-key">kind</span>: <span class="y-str">TailoredProfile</span></span>&nbsp;&nbsp;&nbsp;<span class="y-comment"># ← kind: TailoredProfile !</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">apiGroup</span>: <span class="y-str">compliance.openshift.io/v1alpha1</span>
+    </div>
+  </div>
+
+  <div id="yaml-tp" class="yaml-pane">
+    <div class="yaml-box">
+<span class="y-key">apiVersion</span>: <span class="y-str">compliance.openshift.io/v1alpha1</span><br>
+<span class="y-key">kind</span>: <span class="y-str">TailoredProfile</span><br>
+<span class="y-key">metadata</span>:<br>
+&nbsp;&nbsp;<span class="y-key">name</span>: <span class="y-str">my-tailored-cis</span><br>
+&nbsp;&nbsp;<span class="y-key">namespace</span>: <span class="y-str">openshift-compliance</span><br>
+<span class="y-key">spec</span>:<br>
+&nbsp;&nbsp;<span class="y-anno" data-tip="y-extends"><span class="y-key">extends</span>: <span class="y-str">ocp4-cis</span></span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-comment"># Profil source</span><br>
+&nbsp;&nbsp;<span class="y-key">description</span>: <span class="y-str">"CIS customisé"</span><br>
+&nbsp;&nbsp;<span class="y-anno" data-tip="y-disable"><span class="y-key">disableRules</span>:</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="y-key">name</span>: <span class="y-str">ocp4-api-server-audit-log-maxage</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">rationale</span>: <span class="y-str">"Géré par la politique interne"</span><br>
+&nbsp;&nbsp;<span class="y-anno" data-tip="y-enable"><span class="y-key">enableRules</span>:</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="y-key">name</span>: <span class="y-str">ocp4-scc-limit-privileged-containers</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">rationale</span>: <span class="y-str">"Requis par politique sécurité"</span><br>
+&nbsp;&nbsp;<span class="y-anno" data-tip="y-setvalues"><span class="y-key">setValues</span>:</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span class="y-key">name</span>: <span class="y-str">ocp4-var-role-master</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">rationale</span>: <span class="y-str">"Adapter au rôle de nœud"</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">value</span>: <span class="y-str">"master"</span>
+    </div>
+    <div style="font-size:0.8rem;color:#64748b;padding:0 4px">
+      ⚠️ <code>TailoredProfile</code> ne peut qu'activer/désactiver/modifier des règles existantes — il ne peut pas <strong>créer de nouvelles règles</strong>.
+    </div>
+  </div>
+
+  <div class="exam-box">
+    <h3>Points clés — YAML</h3>
+    <ul>
+      <li>ScanSetting définit le <strong>schedule cron</strong> et les <strong>roles</strong> (master/worker)</li>
+      <li>ScanSettingBinding → <code>settingsRef</code> + <code>profiles</code> (liste mixte Profile/TailoredProfile)</li>
+      <li>Profile standard → <code>kind: Profile</code> | Profil custom → <code>kind: TailoredProfile</code></li>
+      <li><code>autoApplyRemediations: false</code> recommandé en production</li>
+      <li>TailoredProfile → <code>extends</code> obligatoire — ne peut pas créer de règles ex-nihilo</li>
+      <li>Lister les variables disponibles : <code>oc get variables -n openshift-compliance</code></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 3 : Dashboard RHACS                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="dashboard" class="section">
+  <h2>Dashboard Compliance dans RHACS</h2>
+
+  <h3>5 standards de conformité natifs</h3>
+  <div class="standards-grid">
+    <div class="std-card cis" data-tip="std-cis">
+      <div class="std-name">CIS Kubernetes</div>
+      <div class="std-full">Center for Internet Security Kubernetes Benchmark</div>
+      <div class="std-focus">Configuration sécurisée des composants K8s (API server, etcd, kubelet…)</div>
+    </div>
+    <div class="std-card hipaa" data-tip="std-hipaa">
+      <div class="std-name">HIPAA</div>
+      <div class="std-full">Health Insurance Portability and Accountability Act</div>
+      <div class="std-focus">Protection des données de santé — chiffrement, contrôle d'accès, audit</div>
+    </div>
+    <div class="std-card nist190" data-tip="std-nist190">
+      <div class="std-name">NIST SP 800-190</div>
+      <div class="std-full">Application Container Security Guide</div>
+      <div class="std-focus">Sécurité spécifique aux containers et images</div>
+    </div>
+    <div class="std-card nist53" data-tip="std-nist53">
+      <div class="std-name">NIST SP 800-53 Rev.4</div>
+      <div class="std-full">Security and Privacy Controls for Federal IS</div>
+      <div class="std-focus">Contrôles de sécurité pour systèmes fédéraux US — très exhaustif</div>
+    </div>
+    <div class="std-card pci" data-tip="std-pci">
+      <div class="std-name">PCI DSS 3.2.1</div>
+      <div class="std-full">Payment Card Industry Data Security Standard</div>
+      <div class="std-focus">Sécurité des données de cartes bancaires — réseau, accès, monitoring</div>
+    </div>
+  </div>
+
+  <h3>Widgets du Dashboard Compliance</h3>
+  <div class="dashboard-grid">
+    <div class="dash-widget" data-tip="widget-cluster">
+      <div class="dw-icon">🏘️</div>
+      <div class="dw-title">Compliance by Cluster</div>
+      <div class="dw-sub">% de conformité par cluster et par standard</div>
+    </div>
+    <div class="dash-widget" data-tip="widget-ns">
+      <div class="dw-icon">📁</div>
+      <div class="dw-title">Compliance by Namespace</div>
+      <div class="dw-sub">% de conformité par namespace</div>
+    </div>
+    <div class="dash-widget" data-tip="widget-node">
+      <div class="dw-icon">🖥️</div>
+      <div class="dw-title">Compliance by Node</div>
+      <div class="dw-sub">% de conformité par nœud (master/worker)</div>
+    </div>
+    <div class="dash-widget" data-tip="widget-coverage">
+      <div class="dw-icon">✅</div>
+      <div class="dw-title">Coverage</div>
+      <div class="dw-sub">Ressources couvertes par le Compliance Operator</div>
+    </div>
+    <div class="dash-widget" data-tip="widget-scan">
+      <div class="dw-icon">🔄</div>
+      <div class="dw-title">Scan Environment</div>
+      <div class="dw-sub">Déclencher un scan manuel depuis RHACS</div>
+    </div>
+    <div class="dash-widget" data-tip="widget-report">
+      <div class="dw-icon">📊</div>
+      <div class="dw-title">Reports</div>
+      <div class="dw-sub">PDF (exécutif) ou CSV zippé (preuves d'audit)</div>
+    </div>
+  </div>
+
+  <h3>Distinction Control vs Check</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+    <div class="tp-card" data-tip="control">
+      <div class="tp-title">Control</div>
+      <div class="tp-body">
+        Exigence de haut niveau dans un standard de conformité.<br><br>
+        Ex : <em>"Ensure audit logging is enabled"</em><br><br>
+        ⚠️ Un seul <strong>Check échoué</strong> dans un Control = <strong>le Control entier échoue</strong>.
+      </div>
+    </div>
+    <div class="tp-card" data-tip="check">
+      <div class="tp-title">Check</div>
+      <div class="tp-body">
+        Test technique individuel vérifiant un aspect précis d'un Control.<br><br>
+        Ex : <em>"Verify --audit-log-maxage is set to 30 or as appropriate"</em><br><br>
+        Un Control peut avoir plusieurs Checks — tous doivent passer pour que le Control soit PASS.
+      </div>
+    </div>
+  </div>
+
+  <div class="exam-box">
+    <h3>Points clés — Dashboard</h3>
+    <ul>
+      <li><strong>5 standards natifs</strong> : CIS K8s, HIPAA, NIST 800-190, NIST 800-53 Rev.4, PCI DSS 3.2.1</li>
+      <li>Control ≠ Check : un Check failed = <strong>Control entier failed</strong></li>
+      <li>Page <strong>Coverage</strong> nécessite le Compliance Operator installé sur le cluster</li>
+      <li>Export rapports : <strong>PDF</strong> (résumé exécutif) ou <strong>CSV zippé</strong> (preuves détaillées)</li>
+      <li>Chemin : <strong>Compliance → Compliance Management</strong></li>
+      <li>Scan manuel : bouton <strong>Scan Environment</strong> dans le dashboard</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 4 : TailoredProfile                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="tailored" class="section">
+  <h2>TailoredProfile — Personnalisation des profils</h2>
+
+  <div class="tp-grid">
+    <div class="tp-card" data-tip="tp-extends">
+      <div class="tp-title">extends</div>
+      <div class="tp-body">
+        Champ <strong>obligatoire</strong> — indique le profil source à personnaliser.<br><br>
+        Exemples : <code>ocp4-cis</code>, <code>ocp4-pci-dss</code>, <code>ocp4-nist-800-53-rev4</code><br><br>
+        Un TailoredProfile ne peut pas être créé ex-nihilo — il doit toujours étendre un profil existant.
+      </div>
+      <div class="tp-warn">⚠️ Impossible de créer des règles — seulement activer/désactiver/modifier</div>
+    </div>
+
+    <div class="tp-card" data-tip="tp-disable">
+      <div class="tp-title">disableRules</div>
+      <div class="tp-body">
+        Désactive des règles du profil source.<br><br>
+        Format : <code>name</code> (nom de la règle) + <code>rationale</code> (justification obligatoire)<br><br>
+        Cas d'usage : règle non applicable à l'environnement, gérée par un autre outil, exception documentée.
+      </div>
+    </div>
+
+    <div class="tp-card" data-tip="tp-enable">
+      <div class="tp-title">enableRules</div>
+      <div class="tp-body">
+        Active des règles qui sont désactivées dans le profil source.<br><br>
+        Même format : <code>name</code> + <code>rationale</code><br><br>
+        Cas d'usage : durcir un profil existant en activant des règles supplémentaires.
+      </div>
+    </div>
+
+    <div class="tp-card" data-tip="tp-setvalues">
+      <div class="tp-title">setValues</div>
+      <div class="tp-body">
+        Modifie la valeur d'une variable de règle.<br><br>
+        Format : <code>name</code> (variable) + <code>value</code> + <code>rationale</code><br><br>
+        Lister les variables disponibles :<br>
+        <code>oc get variables -n openshift-compliance</code>
+      </div>
+    </div>
+  </div>
+
+  <h3>Workflow TailoredProfile → ScanSettingBinding</h3>
+  <div class="cmd-block">
+    <span class="cmd-comment"># 1. Lister les profils disponibles</span><br>
+    <span class="cmd-kw">oc</span> get profiles.compliance <span class="cmd-flag">-n</span> <span class="cmd-str">openshift-compliance</span><br>
+    <br>
+    <span class="cmd-comment"># 2. Lister les variables modifiables</span><br>
+    <span class="cmd-kw">oc</span> get variables <span class="cmd-flag">-n</span> <span class="cmd-str">openshift-compliance</span><br>
+    <br>
+    <span class="cmd-comment"># 3. Créer le TailoredProfile</span><br>
+    <span class="cmd-kw">oc</span> apply <span class="cmd-flag">-f</span> <span class="cmd-str">tailored-profile.yaml</span><br>
+    <br>
+    <span class="cmd-comment"># 4. Vérifier le statut du TailoredProfile</span><br>
+    <span class="cmd-kw">oc</span> get tailoredprofile <span class="cmd-flag">-n</span> <span class="cmd-str">openshift-compliance</span><br>
+    <br>
+    <span class="cmd-comment"># 5. Lier via oc compliance bind (alternative au YAML ScanSettingBinding)</span><br>
+    <span class="cmd-kw">oc</span> compliance bind <span class="cmd-flag">-N</span> <span class="cmd-str">my-binding</span> <span class="cmd-str">tailoredprofile/my-tailored-cis</span><br>
+    <br>
+    <span class="cmd-comment"># 6. Suivre l'état du scan</span><br>
+    <span class="cmd-kw">oc</span> get compliancescans <span class="cmd-flag">-n</span> <span class="cmd-str">openshift-compliance</span>
+  </div>
+
+  <div class="exam-box">
+    <h3>Points clés — TailoredProfile</h3>
+    <ul>
+      <li><code>extends</code> est <strong>obligatoire</strong> — un TP étend toujours un profil existant</li>
+      <li>Impossible de <strong>créer de nouvelles règles</strong> — seulement activer/désactiver/modifier</li>
+      <li><code>rationale</code> est requis pour chaque règle activée/désactivée — justification documentée</li>
+      <li>Dans ScanSettingBinding → <code>kind: TailoredProfile</code> (pas <code>kind: Profile</code>)</li>
+      <li>Commande bind : <code>oc compliance bind -N &lt;nom&gt; tailoredprofile/&lt;nom&gt;</code></li>
+      <li>Variables disponibles : <code>oc get variables -n openshift-compliance</code></li>
+      <li>Profils disponibles : <code>oc get profiles.compliance -n openshift-compliance</code></li>
+    </ul>
+  </div>
+</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function switchYaml(id, btn) {
+  document.querySelectorAll('.yaml-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.yaml-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('yaml-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+const tips = {
+  'install-both': {
+    title: '⚠️ Installation double',
+    badge: 'Prérequis critique',
+    body: `Le Compliance Operator doit être installé :<br><br>
+      • Sur le <strong>cluster Central</strong> (hub RHACS)<br>
+      • Sur <strong>chaque cluster managé</strong> que l'on veut scanner<br><br>
+      Sans installation sur le cluster managé, la page Coverage dans RHACS sera vide pour ce cluster.`
+  },
+  operator: {
+    title: '⚙️ Compliance Operator',
+    badge: 'OperatorHub',
+    body: `Installé via OperatorHub sur chaque cluster.<br><br>
+      Namespace : <code>openshift-compliance</code><br><br>
+      Fournit les CRD :<br>
+      • <code>ScanSetting</code><br>
+      • <code>ScanSettingBinding</code><br>
+      • <code>TailoredProfile</code><br>
+      • <code>ComplianceScan</code><br>
+      • <code>ComplianceCheckResult</code>`
+  },
+  scansetting: {
+    title: '⏱️ ScanSetting',
+    badge: 'Planification',
+    body: `Définit les paramètres du scan : quand, comment, où stocker les résultats.<br><br>
+      Paramètres clés :<br>
+      • <code>schedule</code> — cron expression<br>
+      • <code>roles</code> — master / worker<br>
+      • <code>rawResultStorage.size</code> — espace de stockage<br>
+      • <code>autoApplyRemediations</code> — ⚠️ à garder à false en prod`
+  },
+  binding: {
+    title: '🔗 ScanSettingBinding',
+    badge: 'Lien Setting ↔ Profils',
+    body: `Fait le lien entre un ScanSetting et un ou plusieurs profils.<br><br>
+      Crée automatiquement un <code>ComplianceScan</code> pour chaque profil référencé.<br><br>
+      <strong>Attention</strong> : le <code>kind</code> du profil dans la liste est important :<br>
+      • Profil standard → <code>kind: Profile</code><br>
+      • Profil custom → <code>kind: TailoredProfile</code>`
+  },
+  profile: {
+    title: '📋 Profile',
+    badge: 'Profil standard',
+    body: `Fourni et maintenu par le Compliance Operator.<br><br>
+      Non modifiable directement — utiliser TailoredProfile pour personnaliser.<br><br>
+      Exemples : <code>ocp4-cis</code>, <code>ocp4-cis-node</code>, <code>ocp4-pci-dss</code>, <code>ocp4-nist-800-53-rev4</code><br><br>
+      Lister : <code>oc get profiles.compliance -n openshift-compliance</code>`
+  },
+  tailored: {
+    title: '✂️ TailoredProfile',
+    badge: 'Profil personnalisé',
+    body: `Profil custom basé sur un profil existant (<code>extends</code> obligatoire).<br><br>
+      Permet de :<br>
+      • Désactiver des règles (<code>disableRules</code>)<br>
+      • Activer des règles désactivées (<code>enableRules</code>)<br>
+      • Modifier les valeurs de variables (<code>setValues</code>)<br><br>
+      ⚠️ Ne peut PAS créer de nouvelles règles.`
+  },
+  'y-schedule': {
+    title: '⏱️ schedule',
+    badge: 'Cron expression',
+    body: `Expression cron standard définissant la fréquence du scan automatique.<br><br>
+      Format : <code>minute heure jour mois jour-semaine</code><br><br>
+      Exemples :<br>
+      • <code>0 1 * * *</code> — tous les jours à 1h<br>
+      • <code>0 3 * * 0</code> — tous les dimanches à 3h<br>
+      • <code>0 0 1 * *</code> — le 1er de chaque mois à minuit`
+  },
+  'y-roles': {
+    title: '🖥️ roles',
+    badge: 'Nœuds ciblés',
+    body: `Définit quels nœuds sont scannés.<br><br>
+      <code>master</code> — nœuds control plane<br>
+      <code>worker</code> — nœuds de calcul<br><br>
+      Les deux peuvent être spécifiés simultanément.<br>
+      Certains profils (CIS Node) ciblent spécifiquement les workers.`
+  },
+  'y-storage': {
+    title: '💾 rawResultStorage',
+    badge: 'Stockage des résultats',
+    body: `Espace de stockage PVC pour les résultats bruts des scans (format OpenSCAP).<br><br>
+      <code>size</code> — taille du PVC (ex: <code>1Gi</code>)<br>
+      <code>rotation</code> — nombre de scans à conserver (les plus anciens sont supprimés)<br><br>
+      Les résultats bruts sont distincts des rapports RHACS.`
+  },
+  'y-remediation': {
+    title: '🔧 autoApplyRemediations',
+    badge: 'Remédiation automatique',
+    body: `Si <code>true</code> : le Compliance Operator applique automatiquement les remédiation disponibles après chaque scan.<br><br>
+      ⚠️ <strong>Déconseillé en production</strong> sans test préalable — les remédiation peuvent modifier la configuration du cluster.<br><br>
+      Recommandation : garder à <code>false</code>, appliquer les remédiation manuellement après review.`
+  },
+  'y-settingsref': {
+    title: '🔗 settingsRef',
+    badge: 'Référence au ScanSetting',
+    body: `Pointe vers le ScanSetting à utiliser pour ce binding.<br><br>
+      Doit être dans le même namespace (<code>openshift-compliance</code>).<br><br>
+      La combinaison ScanSetting + profiles crée automatiquement les <code>ComplianceScan</code>.`
+  },
+  'y-profiles': {
+    title: '📋 profiles',
+    badge: 'Liste des profils',
+    body: `Liste des profils (standard ou personnalisés) à utiliser pour ce scan.<br><br>
+      Chaque profil dans la liste génère un <code>ComplianceScan</code> distinct.<br><br>
+      Format obligatoire :<br>
+      • <code>name</code> — nom du profil<br>
+      • <code>kind</code> — <code>Profile</code> ou <code>TailoredProfile</code><br>
+      • <code>apiGroup</code> — <code>compliance.openshift.io/v1alpha1</code>`
+  },
+  'y-tp-kind': {
+    title: '⚠️ kind: TailoredProfile',
+    badge: 'Point d\'examen fréquent',
+    body: `Dans le ScanSettingBinding, le <code>kind</code> dans la liste <code>profiles</code> doit correspondre exactement au type de ressource :<br><br>
+      • Profil standard → <code>kind: Profile</code><br>
+      • Profil personnalisé → <code>kind: TailoredProfile</code><br><br>
+      Erreur fréquente : mettre <code>kind: Profile</code> pour un TailoredProfile → le scan ne se crée pas.`
+  },
+  'y-extends': {
+    title: '📌 extends',
+    badge: 'Champ obligatoire',
+    body: `Référence le profil standard sur lequel se base le TailoredProfile.<br><br>
+      Exemples :<br>
+      • <code>ocp4-cis</code> — CIS OCP4<br>
+      • <code>ocp4-cis-node</code> — CIS Node<br>
+      • <code>ocp4-pci-dss</code> — PCI DSS<br>
+      • <code>ocp4-nist-800-53-rev4</code> — NIST 800-53<br><br>
+      ⚠️ Champ <strong>obligatoire</strong> — un TP ne peut pas être créé sans extends.`
+  },
+  'y-disable': {
+    title: '🚫 disableRules',
+    badge: 'Désactivation de règles',
+    body: `Désactive des règles présentes dans le profil source.<br><br>
+      Chaque entrée nécessite :<br>
+      • <code>name</code> — ID de la règle (ex: <code>ocp4-api-server-audit-log-maxage</code>)<br>
+      • <code>rationale</code> — justification documentée (obligatoire)<br><br>
+      Lister les règles disponibles :<br>
+      <code>oc get rules.compliance -n openshift-compliance</code>`
+  },
+  'y-enable': {
+    title: '✅ enableRules',
+    badge: 'Activation de règles',
+    body: `Active des règles qui sont désactivées dans le profil source.<br><br>
+      Même format que <code>disableRules</code> : <code>name</code> + <code>rationale</code><br><br>
+      Utile pour durcir un profil standard en ajoutant des contrôles supplémentaires.`
+  },
+  'y-setvalues': {
+    title: '⚙️ setValues',
+    badge: 'Modification de variables',
+    body: `Modifie la valeur d'une variable de règle.<br><br>
+      Lister les variables : <code>oc get variables -n openshift-compliance</code><br><br>
+      Format : <code>name</code> + <code>value</code> + <code>rationale</code><br><br>
+      Exemple : changer le nombre de jours max pour les logs d'audit.`
+  },
+  'tp-extends': {
+    title: '📌 extends — obligatoire',
+    badge: 'TailoredProfile',
+    body: `Un TailoredProfile <strong>doit</strong> étendre un profil existant.<br><br>
+      Il ne peut pas être créé à partir de rien — c'est une personnalisation d'un profil standard.<br><br>
+      Cette contrainte garantit que la base de conformité reste alignée sur un standard reconnu.`
+  },
+  'tp-disable': {
+    title: '🚫 disableRules',
+    badge: 'Exceptions documentées',
+    body: `Permet de désactiver des règles non applicables à l'environnement.<br><br>
+      Le champ <code>rationale</code> est obligatoire — il force la documentation de chaque exception.<br><br>
+      Cas d'usage typiques :<br>
+      • Règle gérée par un autre outil<br>
+      • Exception validée par l'équipe sécurité<br>
+      • Environnement de dev/test avec contraintes différentes`
+  },
+  'tp-enable': {
+    title: '✅ enableRules',
+    badge: 'Durcissement',
+    body: `Active des règles désactivées dans le profil source pour durcir le profil.<br><br>
+      Le <code>rationale</code> documente pourquoi cette règle supplémentaire est requise.<br><br>
+      Utile quand les exigences internes sont plus strictes que le profil standard.`
+  },
+  'tp-setvalues': {
+    title: '⚙️ setValues',
+    badge: 'Paramétrage',
+    body: `Modifie les valeurs des variables configurables d'une règle.<br><br>
+      Exemples :<br>
+      • Nombre de jours de rétention des logs<br>
+      • Taille minimale des clés de chiffrement<br>
+      • Timeout de session<br><br>
+      <code>oc get variables -n openshift-compliance</code> pour la liste complète.`
+  },
+  'std-cis': {
+    title: '🔵 CIS Kubernetes',
+    badge: 'Center for Internet Security',
+    body: `Benchmark de configuration sécurisée pour Kubernetes/OCP.<br><br>
+      Couvre : API server, controller manager, scheduler, etcd, kubelet, network policies.<br><br>
+      Profils RHACS : <code>ocp4-cis</code>, <code>ocp4-cis-node</code>`
+  },
+  'std-hipaa': {
+    title: '🟢 HIPAA',
+    badge: 'Données de santé',
+    body: `Standard de protection des données de santé (USA).<br><br>
+      Couvre : chiffrement des données, contrôle d'accès, journalisation des accès, intégrité des données.<br><br>
+      Profil RHACS : <code>ocp4-hipaa</code>`
+  },
+  'std-nist190': {
+    title: '🟣 NIST SP 800-190',
+    badge: 'Container Security',
+    body: `Guide de sécurité spécifique aux containers et images (NIST).<br><br>
+      Couvre : sécurité des images, runtime, orchestrateur, réseaux, stockage.<br><br>
+      Profil RHACS : <code>ocp4-nist-800-190</code>`
+  },
+  'std-nist53': {
+    title: '🟠 NIST SP 800-53 Rev.4',
+    badge: 'Systèmes fédéraux',
+    body: `Catalogue exhaustif de contrôles de sécurité pour les systèmes d'information fédéraux US.<br><br>
+      Très complet — couvre des centaines de contrôles dans toutes les catégories.<br><br>
+      Profil RHACS : <code>ocp4-nist-800-53-rev4</code>`
+  },
+  'std-pci': {
+    title: '🟡 PCI DSS 3.2.1',
+    badge: 'Données bancaires',
+    body: `Standard de sécurité pour les données de cartes de paiement.<br><br>
+      Couvre : réseau, contrôle d'accès, monitoring, tests réguliers, politiques de sécurité.<br><br>
+      Profil RHACS : <code>ocp4-pci-dss</code>, <code>ocp4-pci-dss-node</code>`
+  },
+  control: {
+    title: '📌 Control',
+    badge: 'Exigence de haut niveau',
+    body: `Un Control est une exigence de conformité définie par le standard.<br><br>
+      Un Control peut contenir un ou plusieurs Checks.<br><br>
+      ⚠️ Règle critique : <strong>un seul Check failed = le Control entier est FAIL</strong>.<br><br>
+      C'est important pour interpréter les résultats du dashboard RHACS.`
+  },
+  check: {
+    title: '🔍 Check',
+    badge: 'Test technique',
+    body: `Test automatisé qui vérifie un aspect précis d'un Control.<br><br>
+      Un Check a 3 états possibles :<br>
+      • <strong>PASS</strong> — conforme<br>
+      • <strong>FAIL</strong> — non conforme<br>
+      • <strong>INFO</strong> / <strong>MANUAL</strong> — vérification manuelle requise<br><br>
+      Si tous les Checks d'un Control passent → Control = PASS.`
+  },
+  'widget-scan': {
+    title: '🔄 Scan Environment',
+    badge: 'Bouton dans RHACS',
+    body: `Déclenche un scan de conformité manuel depuis RHACS sans attendre le schedule cron.<br><br>
+      Chemin : <strong>Compliance → Compliance Management → Scan Environment</strong><br><br>
+      Le scan est exécuté sur tous les clusters ayant le Compliance Operator installé.`
+  },
+  'widget-report': {
+    title: '📊 Reports',
+    badge: 'Deux formats',
+    body: `Deux formats d'export disponibles :<br><br>
+      • <strong>PDF</strong> — rapport exécutif synthétique (dashboard visuel)<br>
+      • <strong>CSV zippé</strong> — données détaillées pour audit (preuves de conformité)<br><br>
+      Export automatique après scan planifié : envoi par email si configuré.<br>
+      Export manuel : <strong>Generate download → All report jobs → Ready for download</strong>`
+  },
+  'widget-coverage': {
+    title: '✅ Coverage',
+    badge: 'Nécessite Compliance Operator',
+    body: `Affiche quelles ressources sont couvertes par le Compliance Operator.<br><br>
+      Disponible uniquement si le Compliance Operator est installé sur le cluster.<br><br>
+      Sans lui : la page Coverage est vide pour ce cluster.`
+  },
+  'widget-cluster': { title: '🏘️ Compliance by Cluster', badge: 'Vue cluster', body: 'Pourcentage de conformité par cluster et par standard. Vue synthétique pour comparer plusieurs clusters.' },
+  'widget-ns': { title: '📁 Compliance by Namespace', badge: 'Vue namespace', body: 'Pourcentage de conformité pour chaque namespace. Utile pour identifier les namespaces à risque.' },
+  'widget-node': { title: '🖥️ Compliance by Node', badge: 'Vue nœud', body: 'Pourcentage de conformité par nœud. Différencie master et worker selon les profils.' }
+};
+
+const tooltip = document.getElementById('tooltip');
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mousemove', e => {
+    const t = tips[el.dataset.tip];
+    if (!t) return;
+    tooltip.innerHTML = `<div class="tip-badge">${t.badge}</div><h4>${t.title}</h4>${t.body}`;
+    tooltip.style.opacity = '1';
+    const x = Math.min(e.clientX + 16, window.innerWidth - 400);
+    const y = Math.min(e.clientY + 16, window.innerHeight - 220);
+    tooltip.style.left = x + 'px';
+    tooltip.style.top  = y + 'px';
+  });
+  el.addEventListener('mouseleave', () => { tooltip.style.opacity = '0'; });
+});
+</script>
+</body>
+</html>

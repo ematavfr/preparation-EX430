@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Network Graph — RHACS</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+header {
+  background: linear-gradient(135deg, #1a1f2e, #2d0a0a);
+  padding: 24px 40px;
+  border-bottom: 2px solid #cc0000;
+  display: flex; align-items: center; justify-content: space-between;
+}
+header h1 { font-size: 1.8rem; color: #ef4444; }
+header p  { color: #94a3b8; margin-top: 6px; font-size: 0.95rem; }
+.home-btn {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  background: #1a1f2e; border: 2px solid #374151;
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; font-size: 1.3rem;
+  transition: all 0.2s; cursor: pointer;
+}
+.home-btn:hover { border-color: #f97316; background: #2d1a0a; transform: scale(1.12); }
+
+nav {
+  display: flex; gap: 8px; padding: 16px 40px;
+  background: #1a1f2e; border-bottom: 1px solid #2d3748; flex-wrap: wrap;
+}
+nav button {
+  padding: 8px 18px; border-radius: 20px; border: 1px solid #cc0000;
+  background: transparent; color: #ef4444; cursor: pointer; font-size: 0.85rem;
+  transition: all 0.2s;
+}
+nav button:hover, nav button.active { background: #cc0000; color: white; }
+
+.section { display: none; padding: 32px 40px; max-width: 1200px; margin: 0 auto; }
+.section.active { display: block; }
+h2 { font-size: 1.3rem; color: #ef4444; margin-bottom: 20px; }
+h3 { font-size: 1rem; color: #7dd3fc; margin-bottom: 12px; }
+
+#tooltip {
+  position: fixed; background: #1e293b; border: 1px solid #cc0000;
+  border-radius: 10px; padding: 16px 20px; max-width: 380px;
+  font-size: 0.85rem; line-height: 1.6; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s; z-index: 200; color: #e2e8f0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+#tooltip h4 { color: #ef4444; margin-bottom: 8px; }
+#tooltip code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #7dd3fc; }
+#tooltip .tip-badge {
+  display: inline-block; background: #7f1d1d; color: #fca5a5;
+  font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px;
+}
+
+/* ══ SECTION 1 : Entités ══ */
+.entities-layout {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 36px;
+}
+.entity-card {
+  border-radius: 14px; padding: 22px 20px; cursor: pointer; transition: all 0.2s;
+  border: 2px solid;
+}
+.entity-card:hover { transform: translateY(-4px); }
+.entity-internal { background: #0f1f3d22; border-color: #1d4ed8; }
+.entity-external  { background: #2d1a0a22; border-color: #c2410c; }
+.entity-cidr      { background: #14532d22; border-color: #15803d; }
+
+.entity-icon  { font-size: 2rem; margin-bottom: 10px; }
+.entity-title { font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+.entity-internal .entity-title { color: #93c5fd; }
+.entity-external .entity-title { color: #fb923c; }
+.entity-cidr .entity-title     { color: #86efac; }
+.entity-body  { font-size: 0.8rem; color: #94a3b8; line-height: 1.6; }
+.entity-body li { margin-left: 14px; margin-bottom: 3px; }
+
+.entity-tag {
+  display: inline-block; margin-top: 10px; padding: 3px 10px; border-radius: 8px;
+  font-size: 0.7rem;
+}
+.entity-internal .entity-tag { background: #1e3a5f; color: #7dd3fc; }
+.entity-external .entity-tag  { background: #431407; color: #fdba74; }
+.entity-cidr .entity-tag      { background: #14532d; color: #86efac; }
+
+/* Side panel tabs */
+.sidepanel {
+  background: #1a1f2e; border-radius: 14px; border: 1px solid #2d3748; overflow: hidden;
+  margin-bottom: 32px;
+}
+.sidepanel-header {
+  background: #0f172a; padding: 14px 20px; border-bottom: 1px solid #374151;
+  font-size: 0.85rem; color: #64748b;
+}
+.sidepanel-header strong { color: #e2e8f0; }
+.tab-row {
+  display: flex; border-bottom: 1px solid #374151;
+}
+.tab {
+  flex: 1; padding: 12px; text-align: center; font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; border-right: 1px solid #374151; transition: all 0.2s;
+  color: #64748b;
+}
+.tab:last-child { border-right: none; }
+.tab.active { background: #2d0a0a33; color: #ef4444; border-bottom: 2px solid #cc0000; }
+.tab:hover:not(.active) { background: #1e293b; color: #94a3b8; }
+
+.tab-content { display: none; padding: 20px; }
+.tab-content.active { display: block; }
+.tab-item {
+  background: #0f172a; border-radius: 8px; padding: 10px 14px;
+  margin-bottom: 8px; font-size: 0.8rem; color: #94a3b8; border-left: 3px solid #374151;
+}
+.tab-item strong { color: #e2e8f0; }
+.tab-item.blue  { border-left-color: #1d4ed8; }
+.tab-item.red   { border-left-color: #cc0000; }
+.tab-item.green { border-left-color: #15803d; }
+.tab-item.amber { border-left-color: #b45309; }
+
+/* Filters strip */
+.filter-strip {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px;
+}
+.filter-chip {
+  background: #1a1f2e; border: 1px solid #374151; border-radius: 20px;
+  padding: 6px 14px; font-size: 0.78rem; color: #94a3b8; cursor: pointer;
+  transition: all 0.2s;
+}
+.filter-chip:hover { border-color: #cc0000; color: #ef4444; }
+.filter-chip.active { background: #cc000022; border-color: #cc0000; color: #fca5a5; }
+
+/* ══ SECTION 2 : Baselines ══ */
+.baseline-flow {
+  display: flex; align-items: stretch; gap: 0; margin-bottom: 36px;
+}
+.bl-stage {
+  flex: 1; border-radius: 14px; padding: 20px 16px;
+  border: 2px solid; cursor: pointer; transition: all 0.2s;
+}
+.bl-stage:hover { transform: translateY(-3px); }
+.bl-discovery { background: #0f1f3d22; border-color: #1d4ed8; }
+.bl-locked    { background: #14532d22; border-color: #15803d; }
+.bl-alert     { background: #450a0a22; border-color: #dc2626; }
+
+.bl-arrow { display: flex; align-items: center; padding: 0 8px; color: #4b5563; font-size: 1.4rem; }
+
+.bl-icon  { font-size: 1.8rem; margin-bottom: 8px; }
+.bl-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; }
+.bl-discovery .bl-title { color: #93c5fd; }
+.bl-locked .bl-title    { color: #86efac; }
+.bl-alert .bl-title     { color: #fca5a5; }
+
+.bl-body { font-size: 0.78rem; color: #94a3b8; line-height: 1.6; }
+.bl-body li { margin-left: 14px; margin-bottom: 3px; }
+.bl-badge {
+  display: inline-block; margin-top: 10px; padding: 3px 10px; border-radius: 8px;
+  font-size: 0.7rem; background: #0f172a; color: #64748b;
+}
+
+.flow-actions-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;
+}
+.fa-card {
+  background: #1a1f2e; border-radius: 12px; padding: 16px 18px;
+  border: 1px solid #2d3748; cursor: pointer; transition: all 0.2s;
+}
+.fa-card:hover { border-color: #7dd3fc; transform: translateY(-2px); }
+.fa-title { font-size: 0.88rem; font-weight: 600; color: #7dd3fc; margin-bottom: 6px; }
+.fa-body  { font-size: 0.78rem; color: #94a3b8; line-height: 1.5; }
+
+/* ══ SECTION 3 : Network Policies ══ */
+.netpol-compare {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px;
+}
+.np-card {
+  border-radius: 14px; padding: 22px 20px;
+  border: 2px solid; cursor: pointer; transition: all 0.2s;
+}
+.np-card:hover { transform: translateY(-3px); }
+.np-ui  { background: #0f1f3d22; border-color: #1d4ed8; }
+.np-cli { background: #14532d22; border-color: #15803d; }
+
+.np-title { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+.np-ui .np-title  { color: #93c5fd; }
+.np-cli .np-title { color: #86efac; }
+.np-sub { font-size: 0.75rem; color: #64748b; margin-bottom: 14px; }
+
+.np-feat {
+  background: #0f172a; border-radius: 8px; padding: 8px 12px;
+  margin-bottom: 6px; font-size: 0.78rem; color: #94a3b8; border-left: 3px solid;
+}
+.np-ui .np-feat   { border-left-color: #1d4ed8; }
+.np-cli .np-feat  { border-left-color: #15803d; }
+.np-feat strong { color: #e2e8f0; }
+.np-warn { font-size: 0.75rem; color: #f97316; margin-top: 10px; }
+
+.cmd-block {
+  background: #0f172a; border-radius: 10px; padding: 16px 18px;
+  font-family: monospace; font-size: 0.82rem; line-height: 1.8;
+  border: 1px solid #374151; margin-bottom: 16px; overflow-x: auto;
+}
+.cmd-comment { color: #4b5563; }
+.cmd-kw  { color: #7dd3fc; }
+.cmd-str { color: #fcd34d; }
+.cmd-flag{ color: #c084fc; }
+
+.exam-box {
+  background: #0f172a; border: 1px solid #cc0000; border-radius: 12px;
+  padding: 20px 24px; margin-top: 24px;
+}
+.exam-box h3 { color: #ef4444; margin-bottom: 12px; }
+.exam-box li { font-size: 0.85rem; color: #94a3b8; margin-left: 20px; margin-bottom: 6px; line-height: 1.5; }
+.exam-box strong { color: #e2e8f0; }
+.exam-box code { color: #7dd3fc; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<header>
+  <div>
+    <h1>Network Graph — RHACS</h1>
+    <p>Entités · Baselines · Network policies · roxctl netpol</p>
+  </div>
+  <a class="home-btn" href="index.html" title="Retour au menu">🏠</a>
+</header>
+
+<nav>
+  <button class="active" onclick="show('entites', this)">Entités &amp; Side panel</button>
+  <button onclick="show('baselines', this)">Network Baselines</button>
+  <button onclick="show('netpol', this)">Network Policies</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 1 : Entités & Side panel                       -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="entites" class="section active">
+  <h2>Les 3 types d'entités du Network Graph</h2>
+
+  <div class="entities-layout">
+    <div class="entity-card entity-internal" data-tip="internal">
+      <div class="entity-icon">🏢</div>
+      <div class="entity-title">Internal</div>
+      <div class="entity-body">
+        <ul>
+          <li>Namespaces du cluster</li>
+          <li>Deployments / Pods</li>
+          <li>Services Kubernetes</li>
+          <li>Workloads sous contrôle RHACS</li>
+        </ul>
+      </div>
+      <div class="entity-tag">Nœuds bleus dans le graphe</div>
+    </div>
+
+    <div class="entity-card entity-external" data-tip="external">
+      <div class="entity-icon">🌐</div>
+      <div class="entity-title">External</div>
+      <div class="entity-body">
+        <ul>
+          <li>Entités hors du cluster</li>
+          <li>Adresses IP publiques</li>
+          <li>Internet / trafic sortant</li>
+          <li>Services externes (cloud, registries…)</li>
+        </ul>
+      </div>
+      <div class="entity-tag">Nœuds orange dans le graphe</div>
+    </div>
+
+    <div class="entity-card entity-cidr" data-tip="cidr">
+      <div class="entity-icon">🔢</div>
+      <div class="entity-title">CIDR Blocks</div>
+      <div class="entity-body">
+        <ul>
+          <li>Plages d'adresses IP définies</li>
+          <li>Représentation de réseaux spécifiques</li>
+          <li>Permet des règles réseau ciblées</li>
+          <li>Utilisé dans les network policies générées</li>
+        </ul>
+      </div>
+      <div class="entity-tag">Nœuds verts dans le graphe</div>
+    </div>
+  </div>
+
+  <h3>Filtres du Network Graph</h3>
+  <div class="filter-strip">
+    <div class="filter-chip active" data-tip="filter-ns">Namespace</div>
+    <div class="filter-chip" data-tip="filter-deploy">Deployment</div>
+    <div class="filter-chip" data-tip="filter-cluster">Cluster</div>
+    <div class="filter-chip" data-tip="filter-time">Time window (1h / 24h / 7d)</div>
+    <div class="filter-chip" data-tip="filter-flow">Flow type (Active / Allowed / Blocked)</div>
+  </div>
+
+  <h3>Side panel — 4 onglets au clic sur un nœud</h3>
+  <div class="sidepanel">
+    <div class="sidepanel-header">
+      Clic sur un déploiement → <strong>Side panel</strong>
+    </div>
+    <div class="tab-row">
+      <div class="tab active" onclick="switchTab('details', this)">Details</div>
+      <div class="tab" onclick="switchTab('flows', this)">Flows</div>
+      <div class="tab" onclick="switchTab('baseline', this)">Baseline</div>
+      <div class="tab" onclick="switchTab('netpols', this)">Network Policies</div>
+    </div>
+    <div id="tab-details" class="tab-content active">
+      <div class="tab-item blue"><strong>Namespace</strong> — namespace du déploiement</div>
+      <div class="tab-item blue"><strong>Cluster</strong> — cluster hébergeant le workload</div>
+      <div class="tab-item blue"><strong>Labels</strong> — labels Kubernetes du déploiement</div>
+      <div class="tab-item blue"><strong>Listening ports</strong> — ports et processus en écoute</div>
+      <div class="tab-item blue"><strong>Container images</strong> — images utilisées</div>
+    </div>
+    <div id="tab-flows" class="tab-content">
+      <div class="tab-item red"><strong>Active flows</strong> — connexions réseau observées en temps réel</div>
+      <div class="tab-item red"><strong>Allowed flows</strong> — connexions autorisées par les network policies</div>
+      <div class="tab-item red"><strong>Anomalous flows</strong> — connexions non présentes dans la baseline</div>
+      <div class="tab-item red"><strong>Blocked flows</strong> — connexions bloquées par les network policies</div>
+      <div class="tab-item amber">⚠️ Le graphe ne se rafraîchit pas automatiquement — cliquer la notification de mise à jour</div>
+    </div>
+    <div id="tab-baseline" class="tab-content">
+      <div class="tab-item green"><strong>Baseline flows</strong> — liste des connexions de référence (phase découverte)</div>
+      <div class="tab-item green"><strong>Add to baseline</strong> — ajouter un flow anomalous à la baseline</div>
+      <div class="tab-item green"><strong>Mark as anomalous</strong> — retirer un flow de la baseline</div>
+      <div class="tab-item green"><strong>Enable alerts on baseline violations</strong> — activer les alertes sur déviation</div>
+      <div class="tab-item green"><strong>Export as Network Policy</strong> — générer un YAML NetworkPolicy depuis la baseline</div>
+    </div>
+    <div id="tab-netpols" class="tab-content">
+      <div class="tab-item amber"><strong>Network policies actives</strong> — policies K8s qui couvrent ce déploiement</div>
+      <div class="tab-item amber"><strong>Policies permettant le trafic</strong> — règles d'ingress autorisées</div>
+      <div class="tab-item amber"><strong>Policies bloquant le trafic</strong> — règles d'egress restrictives</div>
+      <div class="tab-item amber">Lien direct vers le YAML de chaque network policy</div>
+    </div>
+  </div>
+
+  <div class="exam-box">
+    <h3>Points clés — Network Graph</h3>
+    <ul>
+      <li><strong>3 types d'entités</strong> : Internal (cluster) / External (hors cluster) / CIDR blocks</li>
+      <li>Le graphe <strong>ne se rafraîchit pas automatiquement</strong> — cliquer la notification en haut</li>
+      <li>Icône <strong>cadenas</strong> sur un nœud = network policy présente qui couvre ce déploiement</li>
+      <li>Icône <strong>point d'exclamation</strong> = flow anomalous (hors baseline)</li>
+      <li>Chemin : <strong>Network → Network Graph</strong></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 2 : Network Baselines                          -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="baselines" class="section">
+  <h2>Cycle de vie des Network Baselines</h2>
+
+  <div class="baseline-flow">
+    <div class="bl-stage bl-discovery" data-tip="discovery">
+      <div class="bl-icon">🔬</div>
+      <div class="bl-title">Phase Discovery</div>
+      <div class="bl-body">
+        <ul>
+          <li>RHACS observe les connexions réseau du déploiement</li>
+          <li>Tous les flows observés sont <strong>automatiquement ajoutés</strong> à la baseline</li>
+          <li>Durée configurable (par défaut : quelques jours après déploiement)</li>
+          <li>Aucune alerte générée pendant cette phase</li>
+        </ul>
+        <div class="bl-badge">Nouveaux flows → baseline automatiquement</div>
+      </div>
+    </div>
+
+    <div class="bl-arrow">›</div>
+
+    <div class="bl-stage bl-locked" data-tip="locked">
+      <div class="bl-icon">🔒</div>
+      <div class="bl-title">Baseline Établie</div>
+      <div class="bl-body">
+        <ul>
+          <li>La baseline est <strong>figée</strong> — référence des connexions normales</li>
+          <li>Nouveaux flows = <strong>anomalous</strong> (hors baseline)</li>
+          <li>Toggle <em>Enable alerts on baseline violations</em> activé</li>
+          <li>Possibilité d'<strong>ajouter</strong> des flows à la baseline manuellement</li>
+          <li>Possibilité de <strong>marquer</strong> un flow baseline comme anomalous</li>
+        </ul>
+        <div class="bl-badge">Nouveaux flows → anomalous</div>
+      </div>
+    </div>
+
+    <div class="bl-arrow">›</div>
+
+    <div class="bl-stage bl-alert" data-tip="alert">
+      <div class="bl-icon">🚨</div>
+      <div class="bl-title">Alertes Actives</div>
+      <div class="bl-body">
+        <ul>
+          <li>Flow anomalous détecté → <strong>violation</strong> générée dans RHACS</li>
+          <li>Visible dans le menu <strong>Violations</strong></li>
+          <li>Visible dans le <strong>Network Graph</strong> (indicateur visuel)</li>
+          <li>Peut déclencher des <strong>notifications</strong> (Slack, email…)</li>
+          <li>Action : Add to baseline <em>ou</em> Mark as anomalous</li>
+        </ul>
+        <div class="bl-badge">Alert on baseline violation = ON</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Actions disponibles sur les flows (side panel → onglet Baseline)</h3>
+  <div class="flow-actions-grid">
+    <div class="fa-card" data-tip="add-baseline">
+      <div class="fa-title">Add to baseline</div>
+      <div class="fa-body">
+        Ajoute un flow <em>anomalous</em> à la baseline de référence.<br>
+        Ce flow ne déclenchera plus d'alerte.<br>
+        Utile quand un nouveau service légitimes est déployé après la phase discovery.
+      </div>
+    </div>
+    <div class="fa-card" data-tip="mark-anomalous">
+      <div class="fa-title">Mark as anomalous</div>
+      <div class="fa-body">
+        Retire un flow de la baseline — il devient anomalous.<br>
+        Ce flow déclenchera désormais des alertes s'il est observé.<br>
+        Utile pour nettoyer une baseline trop permissive.
+      </div>
+    </div>
+    <div class="fa-card" data-tip="enable-alerts">
+      <div class="fa-title">Enable alerts on baseline violations</div>
+      <div class="fa-body">
+        Toggle dans l'onglet Baseline du side panel.<br>
+        Quand activé : tout flow hors baseline génère une violation RHACS.<br>
+        À activer après la phase discovery quand la baseline est stable.
+      </div>
+    </div>
+    <div class="fa-card" data-tip="export-netpol">
+      <div class="fa-title">Export baseline as Network Policy</div>
+      <div class="fa-body">
+        Génère un YAML <code>NetworkPolicy</code> Kubernetes basé sur les flows de la baseline.<br>
+        Produit des règles <strong>ingress uniquement</strong> depuis l'UI.<br>
+        À appliquer avec <code>oc apply -f</code> — RHACS ne peut pas appliquer directement.
+      </div>
+    </div>
+  </div>
+
+  <div class="exam-box">
+    <h3>Points clés — Baselines</h3>
+    <ul>
+      <li>Phase discovery : tous les flows sont ajoutés automatiquement — <strong>pas d'alertes</strong></li>
+      <li>Après discovery : nouveaux flows = <strong>anomalous</strong> → alertes si toggle activé</li>
+      <li>Toggle <strong>"Enable alerts on baseline violations"</strong> = à activer manuellement</li>
+      <li>Add to baseline ↔ Mark as anomalous : actions réversibles</li>
+      <li>Export depuis la baseline → <strong>ingress uniquement</strong> (UI ne génère pas l'egress)</li>
+      <li>Chemin : Network Graph → clic déploiement → side panel → onglet <strong>Baseline</strong></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 3 : Network Policies                           -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="netpol" class="section">
+  <h2>Génération de Network Policies</h2>
+
+  <div class="netpol-compare">
+    <div class="np-card np-ui" data-tip="np-ui">
+      <div class="np-title">Via l'UI RHACS</div>
+      <div class="np-sub">Network → Network Graph → Network policy generator</div>
+      <div class="np-feat"><strong>Génère uniquement</strong> des règles <strong>ingress</strong></div>
+      <div class="np-feat">Basé sur les flows observés dans le cluster</div>
+      <div class="np-feat">Bouton <strong>Generate and simulate</strong> → prévisualisation</div>
+      <div class="np-feat">Bouton <strong>Download YAML</strong> → export du fichier</div>
+      <div class="np-feat"><strong>Compare</strong> → diff côte à côte avec les policies existantes</div>
+      <div class="np-feat">Ne peut <strong>pas appliquer</strong> directement → <code>oc apply -f</code> requis</div>
+      <div class="np-warn">⚠️ Ingress uniquement — l'egress doit être géré séparément</div>
+    </div>
+
+    <div class="np-card np-cli" data-tip="np-cli">
+      <div class="np-title">Via roxctl (CLI)</div>
+      <div class="np-sub">roxctl netpol — analyse des manifests YAML</div>
+      <div class="np-feat">Génère <strong>ingress ET egress</strong></div>
+      <div class="np-feat">Analyse les manifests locaux (pas besoin de Central connecté)</div>
+      <div class="np-feat"><strong>generate</strong> → génère les policies depuis les manifests</div>
+      <div class="np-feat"><strong>connectivity map</strong> → détecte les workloads non protégés</div>
+      <div class="np-feat"><strong>connectivity diff</strong> → compare deux versions de manifests</div>
+      <div class="np-feat">Exit code non-zéro si violation → intégration <strong>CI/CD</strong></div>
+      <div class="np-warn">Clé pour l'examen : roxctl = ingress + egress (l'UI = ingress only)</div>
+    </div>
+  </div>
+
+  <h3>Commandes roxctl netpol</h3>
+
+  <div class="cmd-block" data-tip="cmd-generate">
+    <span class="cmd-comment"># Générer des network policies depuis des manifests</span><br>
+    <span class="cmd-kw">roxctl</span> netpol <span class="cmd-str">generate</span> <span class="cmd-flag">./manifests/</span><br>
+    <span class="cmd-comment"># → Produit ingress + egress NetworkPolicy YAML</span><br>
+    <br>
+    <span class="cmd-comment"># Avec output dans un fichier</span><br>
+    <span class="cmd-kw">roxctl</span> netpol <span class="cmd-str">generate</span> <span class="cmd-flag">./manifests/</span> <span class="cmd-flag">--output-file netpols.yaml</span>
+  </div>
+
+  <div class="cmd-block" data-tip="cmd-map">
+    <span class="cmd-comment"># Détecter les workloads non protégés (sans network policy)</span><br>
+    <span class="cmd-kw">roxctl</span> netpol <span class="cmd-str">connectivity map</span> <span class="cmd-flag">./manifests/</span><br>
+    <span class="cmd-comment"># → Affiche la matrice de connectivité inter-déploiements</span><br>
+    <span class="cmd-comment"># → Identifie les déploiements sans politique réseau</span>
+  </div>
+
+  <div class="cmd-block" data-tip="cmd-diff">
+    <span class="cmd-comment"># Comparer la connectivité entre deux versions de manifests</span><br>
+    <span class="cmd-kw">roxctl</span> netpol <span class="cmd-str">connectivity diff</span> <span class="cmd-flag">--dir1 ./v1/</span> <span class="cmd-flag">--dir2 ./v2/</span><br>
+    <span class="cmd-comment"># → Affiche les changements de connectivité (ajouts/suppressions)</span><br>
+    <span class="cmd-comment"># → Exit code non-zéro si régression réseau détectée</span>
+  </div>
+
+  <div class="cmd-block" data-tip="cmd-ui">
+    <span class="cmd-comment"># Télécharger et appliquer les policies générées par l'UI</span><br>
+    <span class="cmd-comment"># 1. UI : Network → Network policy generator → Generate → Download YAML</span><br>
+    <span class="cmd-comment"># 2. Appliquer manuellement :</span><br>
+    <span class="cmd-kw">oc</span> apply <span class="cmd-flag">-f</span> <span class="cmd-str">generated-netpols.yaml</span><br>
+    <span class="cmd-comment"># L'UI RHACS ne peut pas appliquer directement les policies</span>
+  </div>
+
+  <div class="exam-box">
+    <h3>Distinction critique pour l'examen</h3>
+    <ul>
+      <li><strong>UI Network Policy Generator</strong> → génère <strong>ingress uniquement</strong></li>
+      <li><strong>roxctl netpol generate</strong> → génère <strong>ingress ET egress</strong></li>
+      <li>L'UI ne peut <strong>jamais appliquer</strong> directement les policies → <code>oc apply -f</code> obligatoire</li>
+      <li><code>roxctl netpol connectivity map</code> → détecter les workloads <strong>non protégés</strong></li>
+      <li><code>roxctl netpol connectivity diff</code> → comparer <strong>deux versions</strong> de manifests</li>
+      <li>Exit code non-zéro de roxctl → violation → pipeline CI/CD peut échouer (comportement voulu)</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+const tips = {
+  internal: {
+    title: '🏢 Entités Internal',
+    badge: 'Dans le cluster',
+    body: `Représentent les workloads et namespaces <strong>à l'intérieur</strong> du cluster sécurisé.<br><br>
+      Incluent :<br>
+      • Namespaces OCP/K8s<br>
+      • Deployments, StatefulSets, DaemonSets<br>
+      • Pods individuels<br><br>
+      Affichés en <strong>bleu</strong> dans le Network Graph. Les connexions entre entités internes sont les plus importantes à sécuriser.`
+  },
+  external: {
+    title: '🌐 Entités External',
+    badge: 'Hors cluster',
+    body: `Représentent les sources/destinations <strong>extérieures</strong> au cluster.<br><br>
+      Incluent :<br>
+      • Internet (adresses IP publiques non classifiées)<br>
+      • Services cloud externes<br>
+      • Registries d'images<br><br>
+      Affichés en <strong>orange</strong>. Toute connexion vers External doit être justifiée.`
+  },
+  cidr: {
+    title: '🔢 CIDR Blocks',
+    badge: 'Plages IP',
+    body: `Représentent des <strong>plages d'adresses IP</strong> définies.<br><br>
+      Permettent de regrouper des adresses IP sous un nom lisible.<br>
+      Utilisés dans les règles de network policies générées par RHACS.<br><br>
+      Affichés en <strong>vert</strong>. Plus précis que External pour des réseaux connus (VPN, on-prem…).`
+  },
+  discovery: {
+    title: '🔬 Phase Discovery',
+    badge: 'Apprentissage automatique',
+    body: `Phase initiale où RHACS <strong>apprend</strong> le comportement réseau normal du déploiement.<br><br>
+      Tous les flows observés pendant cette phase sont automatiquement ajoutés à la baseline.<br><br>
+      Durée : configurable, commence au déploiement du workload.<br><br>
+      ⚠️ Aucune alerte n'est générée pendant la phase discovery.`
+  },
+  locked: {
+    title: '🔒 Baseline Établie',
+    badge: 'Référence figée',
+    body: `La baseline représente le <strong>comportement réseau normal</strong> attendu.<br><br>
+      Tout nouveau flow non présent dans la baseline est considéré comme <strong>anomalous</strong>.<br><br>
+      Actions disponibles :<br>
+      • <strong>Add to baseline</strong> — valider un flow légitime<br>
+      • <strong>Mark as anomalous</strong> — invalider un flow suspect<br>
+      • <strong>Enable alerts</strong> — activer les violations sur déviation`
+  },
+  alert: {
+    title: '🚨 Alertes Actives',
+    badge: 'Violations sur déviation',
+    body: `Quand le toggle <em>Enable alerts on baseline violations</em> est actif :<br><br>
+      Tout flow <strong>anomalous</strong> déclenche une violation dans RHACS.<br><br>
+      Visible dans :<br>
+      • Menu <strong>Violations</strong><br>
+      • Network Graph (indicateur visuel)<br>
+      • Notifications configurées (Slack, email…)`
+  },
+  'add-baseline': {
+    title: '➕ Add to baseline',
+    badge: 'Valider un flow',
+    body: `Ajoute un flow <em>anomalous</em> à la baseline de référence.<br><br>
+      Après cette action, le flow est considéré comme <strong>normal</strong> et ne génère plus d'alerte.<br><br>
+      Cas d'usage : nouveau service déployé après la phase discovery qui communique légitimement.`
+  },
+  'mark-anomalous': {
+    title: '⚠️ Mark as anomalous',
+    badge: 'Invalider un flow',
+    body: `Retire un flow de la baseline — il devient <strong>anomalous</strong>.<br><br>
+      Ce flow déclenchera des alertes s'il est observé à nouveau.<br><br>
+      Cas d'usage : nettoyer une baseline trop permissive (flows acceptés pendant discovery qui ne devraient pas l'être).`
+  },
+  'enable-alerts': {
+    title: '🔔 Enable alerts on baseline violations',
+    badge: 'Toggle side panel',
+    body: `Toggle disponible dans l'onglet <strong>Baseline</strong> du side panel.<br><br>
+      À activer <strong>manuellement</strong> après avoir validé la baseline en phase discovery.<br><br>
+      Quand activé : tout nouveau flow hors baseline → violation RHACS.<br>
+      Quand désactivé : flows anomalous visibles mais pas d'alerte.`
+  },
+  'export-netpol': {
+    title: '📄 Export baseline as Network Policy',
+    badge: 'Génération YAML',
+    body: `Génère un fichier YAML <code>NetworkPolicy</code> Kubernetes basé sur la baseline.<br><br>
+      Produit uniquement des règles <strong>ingress</strong> (pas d'egress).<br><br>
+      ⚠️ RHACS ne peut pas appliquer directement les policies :<br>
+      <code>oc apply -f generated-netpols.yaml</code>`
+  },
+  'np-ui': {
+    title: '🖥️ Network Policy Generator (UI)',
+    badge: 'Ingress uniquement',
+    body: `Accessible via : <strong>Network → Network Graph → Network policy generator</strong><br><br>
+      Génère des NetworkPolicy Kubernetes basées sur les flux observés.<br><br>
+      ⚠️ <strong>Ingress uniquement</strong> — ne génère pas de règles egress.<br><br>
+      Workflow : Generate → Simulate → Compare → Download → <code>oc apply -f</code>`
+  },
+  'np-cli': {
+    title: '⌨️ roxctl netpol (CLI)',
+    badge: 'Ingress + Egress',
+    body: `Analyse les manifests Kubernetes locaux pour générer des network policies.<br><br>
+      <strong>Ne nécessite pas de connexion à Central</strong> — fonctionne sur les fichiers YAML locaux.<br><br>
+      Génère <strong>ingress ET egress</strong> — plus complet que l'UI.<br><br>
+      Idéal pour intégration CI/CD : exit code non-zéro si problème détecté.`
+  },
+  'cmd-generate': {
+    title: '⌨️ roxctl netpol generate',
+    badge: 'Génération policies',
+    body: `Analyse les manifests dans un répertoire et génère des NetworkPolicy correspondantes.<br><br>
+      Produit : <strong>ingress + egress</strong><br><br>
+      Ne nécessite pas de Central connecté — analyse statique des manifests.`
+  },
+  'cmd-map': {
+    title: '⌨️ roxctl netpol connectivity map',
+    badge: 'Audit connectivité',
+    body: `Génère une <strong>matrice de connectivité</strong> entre tous les déploiements.<br><br>
+      Permet d'identifier :<br>
+      • Quels déploiements peuvent communiquer entre eux<br>
+      • Les workloads <strong>sans network policy</strong> (non protégés)<br><br>
+      Utile pour un audit de sécurité réseau.`
+  },
+  'cmd-diff': {
+    title: '⌨️ roxctl netpol connectivity diff',
+    badge: 'Comparaison versions',
+    body: `Compare la connectivité réseau entre deux versions de manifests.<br><br>
+      Permet de détecter les <strong>régressions de sécurité</strong> introduites par un changement.<br><br>
+      Exit code non-zéro si des changements de connectivité sont détectés → pipeline CI/CD peut échouer.`
+  },
+  'cmd-ui': {
+    title: '🖥️ Workflow UI + oc apply',
+    badge: 'Application des policies',
+    body: `L'UI RHACS génère les policies mais <strong>ne peut pas les appliquer directement</strong>.<br><br>
+      Workflow obligatoire :<br>
+      1. UI → Generate → Download YAML<br>
+      2. <code>oc apply -f generated-netpols.yaml</code><br><br>
+      ⚠️ Point d'examen fréquent : l'UI ne fait que générer, jamais appliquer.`
+  },
+  'filter-ns': { title: '🔍 Filtre Namespace', badge: 'Network Graph', body: 'Filtre le graphe pour afficher uniquement les déploiements d\'un namespace spécifique.' },
+  'filter-deploy': { title: '🔍 Filtre Deployment', badge: 'Network Graph', body: 'Zoom sur un déploiement spécifique et ses connexions directes.' },
+  'filter-cluster': { title: '🔍 Filtre Cluster', badge: 'Network Graph', body: 'En environnement multi-cluster, filtre l\'affichage par cluster.' },
+  'filter-time': { title: '🔍 Time window', badge: 'Network Graph', body: 'Fenêtre temporelle des flows affichés : 1h, 24h, ou 7 jours. Influence les flows visibles dans les baselines.' },
+  'filter-flow': { title: '🔍 Flow type', badge: 'Network Graph', body: 'Filtre par type de flow : Active (observé), Allowed (autorisé par netpol), Blocked (bloqué par netpol).' }
+};
+
+const tooltip = document.getElementById('tooltip');
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mousemove', e => {
+    const t = tips[el.dataset.tip];
+    if (!t) return;
+    tooltip.innerHTML = `<div class="tip-badge">${t.badge}</div><h4>${t.title}</h4>${t.body}`;
+    tooltip.style.opacity = '1';
+    const x = Math.min(e.clientX + 16, window.innerWidth - 400);
+    const y = Math.min(e.clientY + 16, window.innerHeight - 220);
+    tooltip.style.left = x + 'px';
+    tooltip.style.top  = y + 'px';
+  });
+  el.addEventListener('mouseleave', () => { tooltip.style.opacity = '0'; });
+});
+</script>
+</body>
+</html>

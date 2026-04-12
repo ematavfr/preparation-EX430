@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Policy Lifecycle — RHACS</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+header {
+  background: linear-gradient(135deg, #1a1f2e, #2d0a0a);
+  padding: 24px 40px;
+  border-bottom: 2px solid #cc0000;
+  display: flex; align-items: center; justify-content: space-between;
+}
+header h1 { font-size: 1.8rem; color: #ef4444; }
+header p  { color: #94a3b8; margin-top: 6px; font-size: 0.95rem; }
+.home-btn {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  background: #1a1f2e; border: 2px solid #374151;
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; font-size: 1.3rem;
+  transition: all 0.2s; cursor: pointer;
+}
+.home-btn:hover { border-color: #f97316; background: #2d1a0a; transform: scale(1.12); }
+
+nav {
+  display: flex; gap: 8px; padding: 16px 40px;
+  background: #1a1f2e; border-bottom: 1px solid #2d3748; flex-wrap: wrap;
+}
+nav button {
+  padding: 8px 18px; border-radius: 20px; border: 1px solid #cc0000;
+  background: transparent; color: #ef4444; cursor: pointer; font-size: 0.85rem;
+  transition: all 0.2s;
+}
+nav button:hover, nav button.active { background: #cc0000; color: white; }
+
+.section { display: none; padding: 32px 40px; max-width: 1300px; margin: 0 auto; }
+.section.active { display: block; }
+h2 { font-size: 1.3rem; color: #ef4444; margin-bottom: 20px; }
+h3 { font-size: 1rem; color: #7dd3fc; margin-bottom: 12px; }
+
+/* ── Tooltip ── */
+#tooltip {
+  position: fixed; background: #1e293b; border: 1px solid #cc0000;
+  border-radius: 10px; padding: 16px 20px; max-width: 380px;
+  font-size: 0.85rem; line-height: 1.6; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s; z-index: 200; color: #e2e8f0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+#tooltip h4 { color: #ef4444; margin-bottom: 8px; }
+#tooltip code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #7dd3fc; }
+#tooltip .tip-badge {
+  display: inline-block; background: #7f1d1d; color: #fca5a5;
+  font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px;
+}
+
+/* ══ SECTION 1 : Vue globale pipeline ══ */
+.pipeline {
+  display: flex; align-items: stretch; gap: 0; margin-bottom: 40px;
+}
+.stage {
+  flex: 1; border-radius: 14px; padding: 24px 20px; position: relative;
+  cursor: pointer; transition: all 0.2s;
+}
+.stage:hover { transform: translateY(-4px); }
+
+.stage-build   { background: linear-gradient(180deg,#1a2744,#0f172a); border: 2px solid #1d4ed8; }
+.stage-deploy  { background: linear-gradient(180deg,#2d1a44,#180f2a); border: 2px solid #7c3aed; }
+.stage-runtime { background: linear-gradient(180deg,#2d1a0a,#1a0f05); border: 2px solid #c2410c; }
+
+.stage-arrow {
+  display: flex; align-items: center; padding: 0 4px; color: #4b5563;
+  font-size: 1.8rem; align-self: center;
+}
+
+.stage-icon  { font-size: 2rem; margin-bottom: 10px; }
+.stage-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+.stage-build .stage-title   { color: #60a5fa; }
+.stage-deploy .stage-title  { color: #c084fc; }
+.stage-runtime .stage-title { color: #fb923c; }
+
+.stage-sub { font-size: 0.75rem; color: #64748b; margin-bottom: 14px; }
+
+.stage-item {
+  background: #0f172a; border-radius: 8px; padding: 8px 10px;
+  margin-bottom: 6px; font-size: 0.78rem; color: #94a3b8; border-left: 3px solid;
+}
+.stage-build .stage-item   { border-left-color: #1d4ed8; }
+.stage-deploy .stage-item  { border-left-color: #7c3aed; }
+.stage-runtime .stage-item { border-left-color: #c2410c; }
+
+.stage-item strong { color: #e2e8f0; }
+
+.inherits-badge {
+  display: inline-block; margin-top: 10px; font-size: 0.68rem;
+  padding: 3px 8px; border-radius: 8px; background: #0f172a; color: #64748b;
+}
+
+/* Severity strip */
+.severity-row {
+  display: flex; gap: 8px; margin-bottom: 32px; flex-wrap: wrap;
+}
+.sev-card {
+  flex: 1; min-width: 140px; border-radius: 12px; padding: 14px 16px;
+  text-align: center; cursor: pointer; transition: all 0.2s;
+}
+.sev-card:hover { transform: scale(1.04); }
+.sev-critical  { background: #450a0a; border: 1.5px solid #dc2626; }
+.sev-high      { background: #431407; border: 1.5px solid #ea580c; }
+.sev-medium    { background: #422006; border: 1.5px solid #d97706; }
+.sev-low       { background: #1c2e1c; border: 1.5px solid #16a34a; }
+.sev-info      { background: #0f1f3d; border: 1.5px solid #1d4ed8; }
+
+.sev-label  { font-weight: 700; font-size: 0.9rem; }
+.sev-critical .sev-label  { color: #fca5a5; }
+.sev-high .sev-label      { color: #fdba74; }
+.sev-medium .sev-label    { color: #fcd34d; }
+.sev-low .sev-label       { color: #86efac; }
+.sev-info .sev-label      { color: #93c5fd; }
+.sev-sub { font-size: 0.7rem; color: #64748b; margin-top: 4px; }
+
+/* ══ SECTION 2 : Enforcement ══ */
+.enf-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.enf-card {
+  border-radius: 14px; padding: 24px; cursor: pointer; transition: all 0.2s;
+}
+.enf-card:hover { transform: translateY(-3px); }
+.enf-inform  { background: #0f1f3d22; border: 2px solid #1d4ed8; }
+.enf-enforce { background: #450a0a22; border: 2px solid #dc2626; }
+
+.enf-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+.enf-inform .enf-title  { color: #60a5fa; }
+.enf-enforce .enf-title { color: #fca5a5; }
+.enf-sub { font-size: 0.78rem; color: #64748b; margin-bottom: 16px; }
+
+.enf-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: #0f172a; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+  font-size: 0.82rem; color: #94a3b8;
+}
+.enf-item .ei-icon { font-size: 1.1rem; flex-shrink: 0; }
+.enf-item strong { color: #e2e8f0; }
+
+.enf-subtypes { margin-top: 16px; }
+.enf-subtype {
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+  border: 1px solid #2d3748;
+}
+.enf-hard { background: #450a0a33; border-color: #dc2626; }
+.enf-soft { background: #431407 33; border-color: #ea580c; }
+.enf-kill { background: #3b1f5e33; border-color: #7c3aed; }
+
+.enf-subtype-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; }
+.enf-hard .enf-subtype-title { color: #fca5a5; }
+.enf-soft .enf-subtype-title { color: #fdba74; }
+.enf-kill .enf-subtype-title { color: #c084fc; }
+.enf-subtype-body { font-size: 0.78rem; color: #94a3b8; line-height: 1.6; }
+.enf-subtype-body code { color: #7dd3fc; font-size: 0.75rem; }
+
+/* ══ SECTION 3 : Actions sur les policies ══ */
+.actions-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;
+  margin-bottom: 32px;
+}
+.action-card {
+  background: #1a1f2e; border-radius: 12px; padding: 18px;
+  border: 1px solid #2d3748; cursor: pointer; transition: all 0.2s;
+}
+.action-card:hover { border-color: #cc0000; transform: translateY(-2px); }
+.ac-icon  { font-size: 1.5rem; margin-bottom: 8px; }
+.ac-title { font-weight: 600; font-size: 0.9rem; color: #f1f5f9; margin-bottom: 6px; }
+.ac-body  { font-size: 0.78rem; color: #64748b; line-height: 1.5; }
+.ac-warn  { font-size: 0.72rem; color: #f97316; margin-top: 6px; }
+
+/* ══ SECTION 4 : Categories ══ */
+.cat-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
+}
+.cat-item {
+  background: #1a1f2e; border-radius: 10px; padding: 14px 16px;
+  border-left: 3px solid #cc0000; font-size: 0.82rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.cat-item:hover { background: #2d0a0a22; border-left-color: #ef4444; }
+.cat-name { font-weight: 600; color: #e2e8f0; margin-bottom: 4px; }
+.cat-ex   { color: #64748b; font-size: 0.72rem; }
+
+.exam-box {
+  background: #0f172a; border: 1px solid #cc0000; border-radius: 12px;
+  padding: 20px 24px; margin-top: 32px;
+}
+.exam-box h3 { color: #ef4444; margin-bottom: 12px; }
+.exam-box li { font-size: 0.85rem; color: #94a3b8; margin-left: 20px; margin-bottom: 6px; line-height: 1.5; }
+.exam-box strong { color: #e2e8f0; }
+</style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<header>
+  <div>
+    <h1>Policy Lifecycle — RHACS</h1>
+    <p>Étapes Build → Deploy → Runtime · Enforcement · Gestion des policies</p>
+  </div>
+  <a class="home-btn" href="index.html" title="Retour au menu">🏠</a>
+</header>
+
+<nav>
+  <button class="active" onclick="show('pipeline', this)">Build → Deploy → Runtime</button>
+  <button onclick="show('enforcement', this)">Modes d'enforcement</button>
+  <button onclick="show('actions', this)">Actions sur les policies</button>
+  <button onclick="show('categories', this)">Catégories &amp; Sévérités</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 1 : Pipeline                                   -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="pipeline" class="section active">
+  <h2>Les 3 étapes du cycle de vie d'une policy</h2>
+
+  <div class="pipeline">
+    <!-- BUILD -->
+    <div class="stage stage-build" data-tip="build">
+      <div class="stage-icon">🔨</div>
+      <div class="stage-title">Build</div>
+      <div class="stage-sub">Au moment de la construction de l'image</div>
+      <div class="stage-item"><strong>roxctl image check</strong> — scanne l'image avant push</div>
+      <div class="stage-item"><strong>CI/CD</strong> — intégration pipeline (exit code non-zéro si violation)</div>
+      <div class="stage-item"><strong>Dockerfile</strong> — critères sur les instructions (USER, CMD…)</div>
+      <div class="stage-item"><strong>CVE</strong> — vulnérabilités dans les packages de l'image</div>
+      <br>
+      <div class="stage-item"><strong>Enforcement</strong> : Inform uniquement</div>
+    </div>
+
+    <div class="stage-arrow">›</div>
+
+    <!-- DEPLOY -->
+    <div class="stage stage-deploy" data-tip="deploy">
+      <div class="stage-icon">🚀</div>
+      <div class="stage-title">Deploy</div>
+      <div class="stage-sub">Au moment du déploiement sur le cluster</div>
+      <div class="stage-item"><strong>Admission Controller</strong> — webhook ValidatingWebhookConfiguration</div>
+      <div class="stage-item"><strong>Critères image</strong> — hérités du stage Build +</div>
+      <div class="stage-item"><strong>Critères Deployment</strong> — privilèges, ressources, variables env…</div>
+      <div class="stage-item"><strong>roxctl deployment check</strong> — validation hors cluster</div>
+      <br>
+      <div class="stage-item"><strong>Enforcement</strong> : Hard (block) ou Soft (scale to 0)</div>
+      <div class="inherits-badge">⬆ hérite des critères Build</div>
+    </div>
+
+    <div class="stage-arrow">›</div>
+
+    <!-- RUNTIME -->
+    <div class="stage stage-runtime" data-tip="runtime">
+      <div class="stage-icon">⚡</div>
+      <div class="stage-title">Runtime</div>
+      <div class="stage-sub">Pendant l'exécution du container</div>
+      <div class="stage-item"><strong>Processus</strong> — processus inattendus dans le container</div>
+      <div class="stage-item"><strong>Réseau</strong> — connexions réseau anormales</div>
+      <div class="stage-item"><strong>Syscalls</strong> — appels système dangereux</div>
+      <div class="stage-item"><strong>Baselines</strong> — déviation par rapport à la baseline de processus</div>
+      <br>
+      <div class="stage-item"><strong>Enforcement</strong> : Kill pod</div>
+      <div class="inherits-badge">⬆ hérite des critères Build + Deploy</div>
+    </div>
+  </div>
+
+  <h3>Sévérités des policies</h3>
+  <div class="severity-row">
+    <div class="sev-card sev-critical" data-tip="sev-critical">
+      <div class="sev-label">Critical</div>
+      <div class="sev-sub">Risque immédiat — action requise</div>
+    </div>
+    <div class="sev-card sev-high" data-tip="sev-high">
+      <div class="sev-label">High</div>
+      <div class="sev-sub">Risque élevé</div>
+    </div>
+    <div class="sev-card sev-medium" data-tip="sev-medium">
+      <div class="sev-label">Medium</div>
+      <div class="sev-sub">Risque modéré</div>
+    </div>
+    <div class="sev-card sev-low" data-tip="sev-low">
+      <div class="sev-label">Low</div>
+      <div class="sev-sub">Risque faible</div>
+    </div>
+    <div class="sev-card sev-info" data-tip="sev-info">
+      <div class="sev-label">Informational</div>
+      <div class="sev-sub">Informatif uniquement</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 2 : Enforcement                                -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="enforcement" class="section">
+  <h2>Modes d'enforcement</h2>
+
+  <div class="enf-layout">
+    <!-- Inform -->
+    <div class="enf-card enf-inform" data-tip="inform">
+      <div class="enf-title">Inform</div>
+      <div class="enf-sub">Mode de détection — génère une violation sans bloquer</div>
+      <div class="enf-item">
+        <span class="ei-icon">🔔</span>
+        <div><strong>Violation créée</strong> dans le menu Violations de RHACS</div>
+      </div>
+      <div class="enf-item">
+        <span class="ei-icon">📊</span>
+        <div>Visible dans le <strong>Dashboard</strong> et les rapports</div>
+      </div>
+      <div class="enf-item">
+        <span class="ei-icon">✅</span>
+        <div>Le déploiement <strong>n'est pas bloqué</strong> — le pod tourne normalement</div>
+      </div>
+      <div class="enf-item">
+        <span class="ei-icon">🔧</span>
+        <div>Applicable aux 3 stages : <strong>Build, Deploy, Runtime</strong></div>
+      </div>
+      <div class="enf-item">
+        <span class="ei-icon">💡</span>
+        <div>Mode par défaut pour les <strong>nouvelles policies</strong> et les policies système</div>
+      </div>
+    </div>
+
+    <!-- Inform and Enforce -->
+    <div class="enf-card enf-enforce" data-tip="enforce">
+      <div class="enf-title">Inform and Enforce</div>
+      <div class="enf-sub">Mode actif — génère une violation ET applique une action corrective</div>
+
+      <div class="enf-subtypes">
+        <div class="enf-subtype enf-hard" data-tip="hard">
+          <div class="enf-subtype-title">Hard Enforcement (Deploy)</div>
+          <div class="enf-subtype-body">
+            L'<strong>Admission Controller</strong> rejette la requête CREATE/UPDATE.<br>
+            L'API server retourne une erreur 403 au client.<br>
+            Le pod n'est <strong>jamais créé</strong>.<br><br>
+            <code>admission-control.bypass: Disabled</code> requis dans SecuredCluster.
+          </div>
+        </div>
+
+        <div class="enf-subtype enf-soft" data-tip="soft">
+          <div class="enf-subtype-title">Soft Enforcement (Deploy)</div>
+          <div class="enf-subtype-body">
+            Le pod est créé, puis RHACS le <strong>scale to 0</strong>.<br>
+            Le Deployment reste à 0 replicas.<br>
+            Utilisé quand l'Admission Controller n'est pas disponible<br>
+            ou pour les ressources non gérées par le webhook.
+          </div>
+        </div>
+
+        <div class="enf-subtype enf-kill" data-tip="kill">
+          <div class="enf-subtype-title">Kill Pod (Runtime)</div>
+          <div class="enf-subtype-body">
+            RHACS <strong>supprime le pod</strong> en cours d'exécution lors d'une violation runtime.<br>
+            Si le Deployment a des replicas, OCP recrée le pod → nouvelle évaluation.<br>
+            Utile pour stopper un processus malveillant détecté en cours d'exécution.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="exam-box" style="margin-top:24px">
+    <h3>Points clés pour l'examen</h3>
+    <ul>
+      <li><strong>Build</strong> → enforcement = Inform uniquement (pas de blocage possible au build)</li>
+      <li><strong>Deploy Hard</strong> → bloque CREATE/UPDATE via webhook (Admission Controller requis)</li>
+      <li><strong>Deploy Soft</strong> → scale to 0 après création (fallback ou absence de webhook)</li>
+      <li><strong>Runtime</strong> → kill pod (le pod est supprimé lors de la violation)</li>
+      <li>Pour désactiver l'enforcement en urgence : <code>oc delete validatingwebhookconfigurations</code></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 3 : Actions                                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="actions" class="section">
+  <h2>Actions sur les policies RHACS</h2>
+
+  <div class="actions-grid">
+    <div class="action-card" data-tip="action-enable">
+      <div class="ac-icon">✅</div>
+      <div class="ac-title">Enable / Disable</div>
+      <div class="ac-body">
+        Active ou désactive une policy.<br>
+        Une policy désactivée ne génère ni violation ni enforcement.<br>
+        Toutes les policies système sont actives par défaut.
+      </div>
+    </div>
+
+    <div class="action-card" data-tip="action-clone">
+      <div class="ac-icon">📋</div>
+      <div class="ac-title">Clone</div>
+      <div class="ac-body">
+        Crée une copie modifiable d'une policy existante.<br>
+        Indispensable pour modifier les policies système (non modifiables directement).
+      </div>
+      <div class="ac-warn">⚠ Toujours cloner avant de modifier une policy par défaut</div>
+    </div>
+
+    <div class="action-card" data-tip="action-edit">
+      <div class="ac-icon">✏️</div>
+      <div class="ac-title">Edit</div>
+      <div class="ac-body">
+        Modifie les critères, la sévérité, les stages, l'enforcement ou les exclusions d'une policy.<br>
+        Disponible uniquement sur les policies custom ou clonées.
+      </div>
+    </div>
+
+    <div class="action-card" data-tip="action-delete">
+      <div class="ac-icon">🗑️</div>
+      <div class="ac-title">Delete</div>
+      <div class="ac-body">
+        Supprime définitivement une policy custom.<br>
+        Les policies système ne peuvent pas être supprimées — seulement désactivées.
+      </div>
+    </div>
+
+    <div class="action-card" data-tip="action-export">
+      <div class="ac-icon">📤</div>
+      <div class="ac-title">Export / Import</div>
+      <div class="ac-body">
+        Exporte les policies au format JSON pour les partager ou les versionner.<br>
+        Import possible depuis un fichier JSON via l'UI.
+      </div>
+    </div>
+
+    <div class="action-card" data-tip="action-scope">
+      <div class="ac-icon">🎯</div>
+      <div class="ac-title">Scope (Exclusions)</div>
+      <div class="ac-body">
+        Permet d'exclure des namespaces, clusters ou déploiements spécifiques de l'enforcement.<br>
+        Utile pour les environnements de dev ou les outils d'infra (Prometheus, etc.).
+      </div>
+    </div>
+  </div>
+
+  <div class="exam-box">
+    <h3>Chemin dans l'UI</h3>
+    <ul>
+      <li><strong>Platform Configuration → Policy Management</strong> — liste de toutes les policies</li>
+      <li>Filtrer par <strong>Policy categories</strong>, <strong>Severity</strong>, <strong>Lifecycle stage</strong>, <strong>Enforced</strong></li>
+      <li>Menu <strong>⋮</strong> sur chaque policy → Enable / Disable / Clone / Delete / Export</li>
+      <li>Onglet <strong>Violations</strong> → voir toutes les violations actives par policy</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 4 : Categories                                 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="categories" class="section">
+  <h2>Catégories de policies</h2>
+
+  <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:20px">
+    Les catégories permettent de filtrer et organiser les policies dans l'UI.
+    Une policy peut appartenir à plusieurs catégories.
+  </p>
+
+  <div class="cat-grid">
+    <div class="cat-item" data-tip="cat-anomalous">
+      <div class="cat-name">Anomalous Activity</div>
+      <div class="cat-ex">Processus inattendus, connexions anormales, escalade de privilèges</div>
+    </div>
+    <div class="cat-item" data-tip="cat-crypto">
+      <div class="cat-name">Cryptocurrency Mining</div>
+      <div class="cat-ex">Détection de mineurs de crypto dans les containers</div>
+    </div>
+    <div class="cat-item" data-tip="cat-devops">
+      <div class="cat-name">DevOps Best Practices</div>
+      <div class="cat-ex">Bonnes pratiques CI/CD, Dockerfile, liveness probes…</div>
+    </div>
+    <div class="cat-item" data-tip="cat-network">
+      <div class="cat-name">Network Tools</div>
+      <div class="cat-ex">curl, wget, netcat dans les images de prod</div>
+    </div>
+    <div class="cat-item" data-tip="cat-pkg">
+      <div class="cat-name">Package Management</div>
+      <div class="cat-ex">apt, yum, pip exécutés au runtime</div>
+    </div>
+    <div class="cat-item" data-tip="cat-privilege">
+      <div class="cat-name">Privileges</div>
+      <div class="cat-ex">Containers privilégiés, root, capabilities dangereuses</div>
+    </div>
+    <div class="cat-item" data-tip="cat-security">
+      <div class="cat-name">Security Best Practices</div>
+      <div class="cat-ex">TLS, secrets en variables d'env, read-only filesystem…</div>
+    </div>
+    <div class="cat-item" data-tip="cat-supply">
+      <div class="cat-name">Supply Chain Security</div>
+      <div class="cat-ex">Images non signées, registries non autorisées</div>
+    </div>
+    <div class="cat-item" data-tip="cat-vuln">
+      <div class="cat-name">Vulnerability Management</div>
+      <div class="cat-ex">CVE Critical/High, packages obsolètes</div>
+    </div>
+    <div class="cat-item" data-tip="cat-docker">
+      <div class="cat-name">Docker CIS</div>
+      <div class="cat-ex">Conformité CIS Docker Benchmark</div>
+    </div>
+  </div>
+
+  <div class="exam-box" style="margin-top:24px">
+    <h3>Résumé pour l'examen</h3>
+    <ul>
+      <li><strong>3 stages</strong> : Build → Deploy → Runtime (chaque stage hérite du précédent)</li>
+      <li><strong>2 enforcement modes</strong> : Inform / Inform and Enforce</li>
+      <li><strong>Deploy enforcement</strong> : Hard (block) vs Soft (scale to 0)</li>
+      <li><strong>Runtime enforcement</strong> : Kill pod uniquement</li>
+      <li>Ne jamais modifier directement une policy système → toujours <strong>Clone</strong> d'abord</li>
+      <li>Policies système : <strong>Disable</strong> uniquement (pas de Delete)</li>
+      <li>Chemin UI : <strong>Platform Configuration → Policy Management</strong></li>
+    </ul>
+  </div>
+</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+const tips = {
+  build: {
+    title: '🔨 Stage Build',
+    badge: 'CI/CD Pipeline',
+    body: `Évaluation au moment de la <strong>construction de l'image</strong>.<br><br>
+      Commande clé : <code>roxctl image check -e $ROX_ENDPOINT --image=img:tag</code><br><br>
+      Enforcement disponible : <strong>Inform uniquement</strong> (pas de blocage possible au build-time côté RHACS).<br><br>
+      Les violations sont remontées dans le Dashboard et les rapports.`
+  },
+  deploy: {
+    title: '🚀 Stage Deploy',
+    badge: 'Admission Controller',
+    body: `Évaluation au moment du <strong>déploiement</strong> sur le cluster.<br><br>
+      Composant : <strong>Admission Controller</strong> (ValidatingWebhookConfiguration)<br><br>
+      Enforcement :<br>
+      • <strong>Hard</strong> → bloque CREATE/UPDATE (403)<br>
+      • <strong>Soft</strong> → autorise puis scale to 0<br><br>
+      Commande hors cluster : <code>roxctl deployment check -f deploy.yaml</code>`
+  },
+  runtime: {
+    title: '⚡ Stage Runtime',
+    badge: 'Sensor + Collector',
+    body: `Évaluation <strong>pendant l'exécution</strong> du container.<br><br>
+      Basé sur les données du <strong>Collector</strong> (processus, réseau, syscalls).<br><br>
+      Enforcement : <strong>Kill pod</strong> (suppression du pod en cours d'exécution)<br><br>
+      Peut déclencher des alertes sur les baselines de processus verrouillées.`
+  },
+  inform: {
+    title: '🔔 Mode Inform',
+    badge: 'Enforcement passif',
+    body: `Génère une violation dans RHACS mais <strong>n'empêche rien</strong>.<br><br>
+      Visible dans :<br>
+      • Menu Violations<br>
+      • Dashboard (widgets par sévérité/catégorie)<br>
+      • Rapports et notifications<br><br>
+      C'est le mode par défaut pour toutes les policies, y compris les policies système.`
+  },
+  enforce: {
+    title: '🚫 Mode Inform and Enforce',
+    badge: 'Enforcement actif',
+    body: `Génère une violation <strong>ET</strong> applique une action corrective automatique.<br><br>
+      L'action dépend du stage :<br>
+      • Build → pas d'action (Inform uniquement)<br>
+      • Deploy → Hard (block) ou Soft (scale to 0)<br>
+      • Runtime → Kill pod<br><br>
+      ⚠️ Nécessite que l'Admission Controller soit déployé et actif pour le Deploy Hard.`
+  },
+  hard: {
+    title: '🔴 Hard Enforcement',
+    badge: 'Deploy — Admission Controller',
+    body: `L'Admission Controller <strong>rejette la requête</strong> avant que le pod soit créé.<br><br>
+      Retourne une erreur 403 :<br>
+      <code>"Failed to deploy: Policy 'XYZ' violated"</code><br><br>
+      Prérequis : <code>admissionControl.bypass: Disabled</code> dans la CR SecuredCluster.`
+  },
+  soft: {
+    title: '🟠 Soft Enforcement',
+    badge: 'Deploy — Sensor',
+    body: `Le pod est créé puis RHACS le <strong>scale to 0</strong> via le Sensor.<br><br>
+      Le Deployment reste présent avec 0 replicas.<br><br>
+      Utilisé quand :<br>
+      • L'Admission Controller n'est pas actif<br>
+      • La ressource n'est pas interceptée par le webhook<br>
+      • La policy n'a que le Sensor comme point d'application`
+  },
+  kill: {
+    title: '🟣 Kill Pod (Runtime)',
+    badge: 'Runtime — Collector + Sensor',
+    body: `RHACS <strong>supprime le pod</strong> qui a déclenché une violation runtime.<br><br>
+      Si le Deployment a des replicas configurés, OCP recrée le pod → nouvelle évaluation.<br><br>
+      Utile pour stopper un processus malveillant (shell, scanner réseau, miner crypto…).`
+  },
+  'action-enable': {
+    title: '✅ Enable / Disable',
+    badge: 'Policy Management',
+    body: `Active ou désactive une policy sans la supprimer.<br><br>
+      Une policy désactivée ne génère plus de violations ni d'enforcement.<br><br>
+      Chemin : <strong>Platform Configuration → Policy Management → ⋮ → Enable / Disable</strong>`
+  },
+  'action-clone': {
+    title: '📋 Clone',
+    badge: 'Règle d\'or pour l\'examen',
+    body: `Crée une copie <strong>modifiable</strong> d'une policy existante.<br><br>
+      <strong>Obligatoire</strong> pour modifier les policies système RHACS (non éditables directement).<br><br>
+      Le clone reçoit un nouveau nom (ex: <em>Copy of No root containers</em>) que l'on peut renommer.`
+  },
+  'action-scope': {
+    title: '🎯 Scope et Exclusions',
+    badge: 'Réduire le bruit',
+    body: `Permet d'exclure certains namespaces, clusters ou déploiements de l'enforcement.<br><br>
+      Exemples d'usage :<br>
+      • Exclure le namespace <code>monitoring</code> d'une policy sur les ports exposés<br>
+      • Exclure un déploiement d'infra (Prometheus, FluentD…)<br><br>
+      Réduction du bruit sans désactiver la policy globalement.`
+  },
+  'sev-critical': {
+    title: '🔴 Critical',
+    badge: 'Sévérité maximale',
+    body: `Menace immédiate nécessitant une action urgente.<br>Exemples : container avec shell root actif, CVE critique exploitée, crypto miner détecté.`
+  },
+  'sev-high': {
+    title: '🟠 High',
+    badge: 'Risque élevé',
+    body: `Risque sécurité significatif.<br>Exemples : container privilégié, image avec CVE High non corrigée, port SSH exposé.`
+  },
+  'sev-medium': {
+    title: '🟡 Medium',
+    badge: 'Risque modéré',
+    body: `Risque modéré — à traiter rapidement.<br>Exemples : pas de liveness probe, variables d'env contenant des secrets, apt exécuté en runtime.`
+  },
+  'sev-low': {
+    title: '🟢 Low',
+    badge: 'Risque faible',
+    body: `Risque faible — à traiter dans un délai normal.<br>Exemples : image sans tag digest, absence de resource limits.`
+  },
+  'sev-info': {
+    title: '🔵 Informational',
+    badge: 'Informatif',
+    body: `Informatif uniquement — pas de risque immédiat.<br>Exemples : utilisation d'une registry externe, absence de label de version.`
+  }
+};
+
+const tooltip = document.getElementById('tooltip');
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mousemove', e => {
+    const t = tips[el.dataset.tip];
+    if (!t) return;
+    tooltip.innerHTML = `<div class="tip-badge">${t.badge}</div><h4>${t.title}</h4>${t.body}`;
+    tooltip.style.opacity = '1';
+    const x = Math.min(e.clientX + 16, window.innerWidth - 400);
+    const y = Math.min(e.clientY + 16, window.innerHeight - 220);
+    tooltip.style.left = x + 'px';
+    tooltip.style.top  = y + 'px';
+  });
+  el.addEventListener('mouseleave', () => { tooltip.style.opacity = '0'; });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admission Controller — RHACS</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+header {
+  background: linear-gradient(135deg, #1a1f2e, #2d0a0a);
+  padding: 24px 40px;
+  border-bottom: 2px solid #cc0000;
+  display: flex; align-items: center; justify-content: space-between;
+}
+header h1 { font-size: 1.8rem; color: #ef4444; }
+header p  { color: #94a3b8; margin-top: 6px; font-size: 0.95rem; }
+.home-btn {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  background: #1a1f2e; border: 2px solid #374151;
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; font-size: 1.3rem;
+  transition: all 0.2s; cursor: pointer;
+}
+.home-btn:hover { border-color: #f97316; background: #2d1a0a; transform: scale(1.12); }
+
+nav {
+  display: flex; gap: 8px; padding: 16px 40px;
+  background: #1a1f2e; border-bottom: 1px solid #2d3748; flex-wrap: wrap;
+}
+nav button {
+  padding: 8px 18px; border-radius: 20px; border: 1px solid #cc0000;
+  background: transparent; color: #ef4444; cursor: pointer; font-size: 0.85rem;
+  transition: all 0.2s;
+}
+nav button:hover, nav button.active { background: #cc0000; color: white; }
+
+.section { display: none; padding: 32px 40px; max-width: 1200px; margin: 0 auto; }
+.section.active { display: block; }
+h2 { font-size: 1.3rem; color: #ef4444; margin-bottom: 20px; }
+h3 { font-size: 1rem; color: #7dd3fc; margin-bottom: 12px; }
+
+/* ── Tooltip ── */
+#tooltip {
+  position: fixed; background: #1e293b; border: 1px solid #cc0000;
+  border-radius: 10px; padding: 16px 20px; max-width: 380px;
+  font-size: 0.85rem; line-height: 1.6; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s; z-index: 200; color: #e2e8f0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+#tooltip h4 { color: #ef4444; margin-bottom: 8px; }
+#tooltip code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #7dd3fc; }
+#tooltip .tip-badge {
+  display: inline-block; background: #7f1d1d; color: #fca5a5;
+  font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px;
+}
+
+/* ══ SECTION 1 : Flux de décision ══ */
+.flow {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  max-width: 680px; margin: 0 auto;
+}
+
+.flow-node {
+  width: 100%; border-radius: 12px; padding: 16px 20px;
+  text-align: center; cursor: pointer; transition: all 0.2s;
+  border: 2px solid;
+}
+.flow-node:hover { transform: scale(1.02); }
+
+.node-client    { background: #0f1f3d22; border-color: #1d4ed8; }
+.node-apiserver { background: #0f2318 22; border-color: #15803d; }
+.node-webhook   { background: #2d1a44 22; border-color: #7c3aed; }
+.node-sensor    { background: #422006 22; border-color: #c2410c; }
+.node-allow     { background: #14532d22; border-color: #16a34a; }
+.node-deny      { background: #450a0a22; border-color: #dc2626; }
+.node-scale     { background: #431407 22; border-color: #ea580c; }
+
+.node-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+.node-client .node-title    { color: #93c5fd; }
+.node-apiserver .node-title { color: #86efac; }
+.node-webhook .node-title   { color: #c084fc; }
+.node-sensor .node-title    { color: #fb923c; }
+.node-allow .node-title     { color: #4ade80; }
+.node-deny .node-title      { color: #fca5a5; }
+.node-scale .node-title     { color: #fdba74; }
+
+.node-sub { font-size: 0.75rem; color: #64748b; }
+
+/* Arrows between nodes */
+.flow-arrow {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 4px 0;
+}
+.arrow-line {
+  width: 2px; height: 28px; background: #4b5563;
+}
+.arrow-tip {
+  width: 0; height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 10px solid #4b5563;
+}
+.arrow-label-box {
+  font-size: 0.7rem; color: #94a3b8; background: #1a1f2e;
+  padding: 3px 10px; border-radius: 8px; border: 1px solid #374151;
+  white-space: nowrap;
+}
+
+/* Branch */
+.flow-branch {
+  display: flex; gap: 20px; width: 100%; justify-content: center; align-items: flex-start;
+}
+.branch-col { display: flex; flex-direction: column; align-items: center; gap: 0; flex: 1; max-width: 280px; }
+
+.branch-header {
+  font-size: 0.75rem; font-weight: 600; padding: 4px 14px; border-radius: 10px; margin-bottom: 8px;
+}
+.branch-yes { background: #15803d33; color: #4ade80; border: 1px solid #15803d; }
+.branch-no  { background: #7c3aed33; color: #c084fc; border: 1px solid #7c3aed; }
+
+.branch-or {
+  display: flex; align-items: center; gap: 10px; font-size: 0.72rem; color: #4b5563;
+  width: 100%; justify-content: center; margin: 4px 0;
+}
+.branch-or::before, .branch-or::after {
+  content: ''; flex: 1; height: 1px; background: #374151;
+}
+
+/* ══ SECTION 2 : Config SecuredCluster ══ */
+.yaml-box {
+  background: #0f172a; border-radius: 12px; padding: 20px 24px;
+  border: 1px solid #374151; font-family: monospace; font-size: 0.82rem;
+  line-height: 1.8; overflow-x: auto; margin-bottom: 20px;
+}
+.y-key     { color: #7dd3fc; }
+.y-val     { color: #86efac; }
+.y-str     { color: #fcd34d; }
+.y-comment { color: #4b5563; }
+.y-num     { color: #c084fc; }
+.y-anno    { color: #fb923c; cursor: pointer; text-decoration: underline dotted; }
+
+.param-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px;
+  margin-bottom: 24px;
+}
+.param-card {
+  background: #1a1f2e; border-radius: 10px; padding: 14px 16px;
+  border-left: 3px solid #7c3aed; cursor: pointer; transition: all 0.2s;
+}
+.param-card:hover { border-left-color: #c084fc; background: #2d1a4422; }
+.param-key  { font-family: monospace; font-size: 0.82rem; color: #7dd3fc; margin-bottom: 4px; }
+.param-vals { font-size: 0.78rem; color: #94a3b8; line-height: 1.5; }
+.param-vals strong { color: #e2e8f0; }
+
+/* ══ SECTION 3 : Dépannage ══ */
+.trouble-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;
+}
+.trouble-card {
+  background: #1a1f2e; border-radius: 12px; padding: 18px;
+  border: 1px solid #2d3748; cursor: pointer; transition: all 0.2s;
+}
+.trouble-card:hover { border-color: #cc0000; transform: translateY(-2px); }
+.tc-symptom { font-size: 0.85rem; font-weight: 600; color: #fca5a5; margin-bottom: 8px; }
+.tc-cause   { font-size: 0.78rem; color: #64748b; margin-bottom: 8px; }
+.tc-fix     { font-size: 0.78rem; color: #86efac; }
+.tc-fix code { font-size: 0.75rem; color: #7dd3fc; display: block; margin-top: 4px; }
+
+.exam-box {
+  background: #0f172a; border: 1px solid #cc0000; border-radius: 12px;
+  padding: 20px 24px; margin-top: 24px;
+}
+.exam-box h3 { color: #ef4444; margin-bottom: 12px; }
+.exam-box li { font-size: 0.85rem; color: #94a3b8; margin-left: 20px; margin-bottom: 6px; line-height: 1.5; }
+.exam-box strong { color: #e2e8f0; }
+.exam-box code { color: #7dd3fc; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<header>
+  <div>
+    <h1>Admission Controller — RHACS</h1>
+    <p>Flux de décision webhook · Configuration SecuredCluster · Dépannage</p>
+  </div>
+  <a class="home-btn" href="index.html" title="Retour au menu">🏠</a>
+</header>
+
+<nav>
+  <button class="active" onclick="show('flux', this)">Flux de décision</button>
+  <button onclick="show('config', this)">Configuration SecuredCluster</button>
+  <button onclick="show('depannage', this)">Dépannage</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 1 : Flux de décision                           -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="flux" class="section active">
+  <h2>Flux de décision — AdmissionReview</h2>
+
+  <div class="flow">
+
+    <!-- Client -->
+    <div class="flow-node node-client" data-tip="client">
+      <div class="node-title">Client (kubectl / oc)</div>
+      <div class="node-sub">kubectl apply -f deployment.yaml</div>
+    </div>
+
+    <div class="flow-arrow">
+      <div class="arrow-line"></div>
+      <div class="arrow-label-box">CREATE / UPDATE request</div>
+      <div class="arrow-line"></div>
+      <div class="arrow-tip"></div>
+    </div>
+
+    <!-- API Server -->
+    <div class="flow-node node-apiserver" data-tip="apiserver">
+      <div class="node-title">API Server OCP/K8s</div>
+      <div class="node-sub">Authentification → Autorisation → Admission</div>
+    </div>
+
+    <div class="flow-arrow">
+      <div class="arrow-line"></div>
+      <div class="arrow-label-box">AdmissionReview (webhook call)</div>
+      <div class="arrow-line"></div>
+      <div class="arrow-tip"></div>
+    </div>
+
+    <!-- Admission Controller -->
+    <div class="flow-node node-webhook" data-tip="webhook">
+      <div class="node-title">Admission Controller RHACS</div>
+      <div class="node-sub">ValidatingWebhookConfiguration · namespace stackrox · 3 replicas</div>
+    </div>
+
+    <div class="flow-arrow">
+      <div class="arrow-line"></div>
+      <div class="arrow-label-box">Évalue les policies (deploy-time)</div>
+      <div class="arrow-line"></div>
+      <div class="arrow-tip"></div>
+    </div>
+
+    <!-- Decision diamond -->
+    <div style="width:100%;text-align:center;margin:4px 0">
+      <div style="display:inline-block;background:#1a1f2e;border:2px solid #4b5563;
+                  padding:12px 28px;border-radius:10px;font-size:0.85rem;color:#94a3b8">
+        🔍 Violation de policy détectée ?
+      </div>
+    </div>
+
+    <!-- Branch -->
+    <div class="flow-branch" style="margin-top:10px">
+
+      <!-- Non = allow -->
+      <div class="branch-col">
+        <div class="branch-header branch-no">Non → Aucune violation</div>
+        <div class="flow-arrow" style="width:100%">
+          <div class="arrow-line"></div>
+          <div class="arrow-tip"></div>
+        </div>
+        <div class="flow-node node-allow" data-tip="allow" style="width:100%">
+          <div class="node-title">✅ Allow</div>
+          <div class="node-sub">Le pod est créé normalement</div>
+        </div>
+      </div>
+
+      <!-- Oui = violation -->
+      <div class="branch-col">
+        <div class="branch-header branch-yes">Oui → Violation</div>
+
+        <div style="width:100%;text-align:center;margin:4px 0;font-size:0.72rem;color:#64748b">
+          Enforcement ?
+        </div>
+
+        <!-- Hard -->
+        <div class="flow-node node-deny" data-tip="hard" style="width:100%;margin-bottom:10px">
+          <div class="node-title">🔴 Hard → DENY (403)</div>
+          <div class="node-sub">Pod jamais créé · message d'erreur renvoyé</div>
+        </div>
+
+        <div class="branch-or">ou</div>
+
+        <!-- Soft -->
+        <div class="flow-node node-scale" data-tip="soft" style="width:100%;margin-top:10px">
+          <div class="node-title">🟠 Soft → Allow + Scale to 0</div>
+          <div class="node-sub">Pod créé puis replicas mis à 0 par Sensor</div>
+        </div>
+
+        <div class="branch-or">ou</div>
+
+        <!-- Inform only -->
+        <div class="flow-node node-sensor" data-tip="inform-only" style="width:100%;margin-top:10px">
+          <div class="node-title">🔔 Inform → Allow + Violation</div>
+          <div class="node-sub">Pod créé · violation enregistrée uniquement</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="exam-box" style="max-width:680px;margin:32px auto 0">
+    <h3>Points clés — flux</h3>
+    <ul>
+      <li>Le webhook n'intercepte que <strong>CREATE et UPDATE</strong> — pas DELETE</li>
+      <li>L'Admission Controller consulte le <strong>Sensor local</strong> pour évaluer les policies</li>
+      <li><strong>Sensor initie</strong> la connexion vers Central — pas l'inverse</li>
+      <li>Si l'Admission Controller est indisponible et <code>failOpen: true</code> → requêtes autorisées par défaut</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 2 : Configuration SecuredCluster               -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="config" class="section">
+  <h2>Configuration dans la CR SecuredCluster</h2>
+
+  <div class="yaml-box">
+<span class="y-key">apiVersion</span>: <span class="y-str">platform.stackrox.io/v1alpha1</span><br>
+<span class="y-key">kind</span>: <span class="y-str">SecuredCluster</span><br>
+<span class="y-key">metadata</span>:<br>
+&nbsp;&nbsp;<span class="y-key">name</span>: <span class="y-str">stackrox-secured-cluster-services</span><br>
+&nbsp;&nbsp;<span class="y-key">namespace</span>: <span class="y-str">stackrox</span><br>
+<span class="y-key">spec</span>:<br>
+&nbsp;&nbsp;<span class="y-key">clusterName</span>: <span class="y-str">mon-cluster</span><br>
+&nbsp;&nbsp;<span class="y-key">centralEndpoint</span>: <span class="y-str">central.stackrox.svc:443</span><br>
+&nbsp;&nbsp;<span class="y-key">admissionControl</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">listenOnCreates</span>: <span class="y-val">true</span>&nbsp;&nbsp;&nbsp;<span class="y-comment"># intercepte CREATE</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">listenOnUpdates</span>: <span class="y-val">true</span>&nbsp;&nbsp;&nbsp;<span class="y-comment"># intercepte UPDATE</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">listenOnEvents</span>: <span class="y-val">true</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-comment"># événements Kubernetes</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">enforceOnCreates</span>: <span class="y-val">true</span>&nbsp;<span class="y-comment"># hard enforcement sur CREATE</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">enforceOnUpdates</span>: <span class="y-val">true</span>&nbsp;<span class="y-comment"># hard enforcement sur UPDATE</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-anno" data-tip="bypass"><span class="y-key">bypass</span>: <span class="y-str">Disabled</span></span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-comment"># désactive le bypass annotation</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-anno" data-tip="replicas"><span class="y-key">replicas</span>: <span class="y-num">3</span></span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-comment"># HA — 3 replicas recommandés</span><br>
+&nbsp;&nbsp;<span class="y-key">sensor</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">resources</span>: <span class="y-comment"># optionnel</span><br>
+&nbsp;&nbsp;<span class="y-key">collector</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-key">collection</span>: <span class="y-str">EBPF</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="y-comment"># ou KERNEL_MODULE</span>
+  </div>
+
+  <h3>Paramètres clés de admissionControl</h3>
+  <div class="param-grid">
+    <div class="param-card" data-tip="bypass">
+      <div class="param-key">bypass</div>
+      <div class="param-vals">
+        <strong>Disabled</strong> — aucun bypass possible (recommandé prod)<br>
+        <strong>BreakGlassAnnotation</strong> — bypass via annotation sur le pod<br>
+        Annotation : <code>admission.stackrox.io/break-glass: "true"</code>
+      </div>
+    </div>
+    <div class="param-card" data-tip="listen-creates">
+      <div class="param-key">listenOnCreates</div>
+      <div class="param-vals">
+        <strong>true</strong> — intercepte les CREATE<br>
+        <strong>false</strong> — ignore les créations (déconseillé)<br>
+        Par défaut : <strong>true</strong>
+      </div>
+    </div>
+    <div class="param-card" data-tip="listen-updates">
+      <div class="param-key">listenOnUpdates</div>
+      <div class="param-vals">
+        <strong>true</strong> — intercepte les UPDATE<br>
+        Important pour détecter les modifications post-déploiement<br>
+        Par défaut : <strong>true</strong>
+      </div>
+    </div>
+    <div class="param-card" data-tip="enforce-creates">
+      <div class="param-key">enforceOnCreates</div>
+      <div class="param-vals">
+        <strong>true</strong> — Hard enforcement sur CREATE (bloc API)<br>
+        <strong>false</strong> — Inform only sur CREATE<br>
+        Nécessite <code>listenOnCreates: true</code>
+      </div>
+    </div>
+    <div class="param-card" data-tip="enforce-updates">
+      <div class="param-key">enforceOnUpdates</div>
+      <div class="param-vals">
+        <strong>true</strong> — Hard enforcement sur UPDATE<br>
+        <strong>false</strong> — Inform only sur UPDATE<br>
+        Nécessite <code>listenOnUpdates: true</code>
+      </div>
+    </div>
+    <div class="param-card" data-tip="replicas">
+      <div class="param-key">replicas</div>
+      <div class="param-vals">
+        <strong>3</strong> — recommandé pour la HA<br>
+        <strong>1</strong> — acceptable en dev/test<br>
+        Si tous les pods tombent → <code>failOpen</code> détermine le comportement
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 3 : Dépannage                                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="depannage" class="section">
+  <h2>Dépannage de l'Admission Controller</h2>
+
+  <div class="trouble-grid">
+    <div class="trouble-card" data-tip="trouble-block">
+      <div class="tc-symptom">Tous les déploiements sont bloqués</div>
+      <div class="tc-cause">Policy trop restrictive ou mal configurée bloquant tout le cluster</div>
+      <div class="tc-fix">
+        Solution d'urgence — supprimer le webhook :
+        <code>oc delete validatingwebhookconfiguration stackrox</code>
+        Puis investiguer et corriger la policy concernée.
+      </div>
+    </div>
+
+    <div class="trouble-card" data-tip="trouble-noblock">
+      <div class="tc-symptom">Policy enforce configurée mais ne bloque pas</div>
+      <div class="tc-cause">Admission Controller non déployé ou bypass activé</div>
+      <div class="tc-fix">
+        Vérifier :<br>
+        <code>oc get pods -n stackrox -l app=admission-control</code><br>
+        <code>oc get validatingwebhookconfigurations | grep stackrox</code>
+      </div>
+    </div>
+
+    <div class="trouble-card" data-tip="trouble-timeout">
+      <div class="tc-symptom">Timeout lors des déploiements</div>
+      <div class="tc-cause">Pods admission-control surchargés ou réseau lent vers Sensor</div>
+      <div class="tc-fix">
+        Vérifier les logs :
+        <code>oc logs -n stackrox -l app=admission-control --tail=50</code>
+        Augmenter le nombre de replicas si nécessaire.
+      </div>
+    </div>
+
+    <div class="trouble-card" data-tip="trouble-bypass">
+      <div class="tc-symptom">Besoin de bypass d'urgence sur un pod spécifique</div>
+      <div class="tc-cause">Policy bloque un workload critique en production</div>
+      <div class="tc-fix">
+        Si <code>bypass: BreakGlassAnnotation</code> configuré :
+        <code>metadata:<br>&nbsp;&nbsp;annotations:<br>&nbsp;&nbsp;&nbsp;&nbsp;admission.stackrox.io/break-glass: "true"</code>
+      </div>
+    </div>
+
+    <div class="trouble-card" data-tip="trouble-sc">
+      <div class="tc-symptom">Admission Controller non créé après CR SecuredCluster</div>
+      <div class="tc-cause">Init bundle manquant ou secrets non appliqués dans le namespace stackrox</div>
+      <div class="tc-fix">
+        Vérifier les secrets :
+        <code>oc get secrets -n stackrox | grep admission</code>
+        Réappliquer le bundle si nécessaire.
+      </div>
+    </div>
+
+    <div class="trouble-card" data-tip="trouble-webhook">
+      <div class="tc-symptom">ValidatingWebhookConfiguration absent</div>
+      <div class="tc-cause">CR SecuredCluster non déployée ou <code>listenOnCreates: false</code></div>
+      <div class="tc-fix">
+        Vérifier la CR :
+        <code>oc get securedcluster -n stackrox -o yaml | grep admission</code>
+        Vérifier que <code>listenOnCreates: true</code> et <code>enforceOnCreates: true</code>.
+      </div>
+    </div>
+  </div>
+
+  <div class="exam-box">
+    <h3>Commandes de diagnostic clés</h3>
+    <ul>
+      <li>Lister les pods : <code>oc get pods -n stackrox -l app=admission-control</code></li>
+      <li>Logs admission controller : <code>oc logs -n stackrox -l app=admission-control</code></li>
+      <li>Vérifier le webhook : <code>oc get validatingwebhookconfiguration | grep stackrox</code></li>
+      <li>Supprimer le webhook (urgence) : <code>oc delete validatingwebhookconfiguration stackrox</code></li>
+      <li>Vérifier la CR SecuredCluster : <code>oc get securedcluster -n stackrox -o yaml</code></li>
+    </ul>
+  </div>
+
+  <div class="exam-box" style="margin-top:16px">
+    <h3>Résumé pour l'examen</h3>
+    <ul>
+      <li>Webhook = <strong>ValidatingWebhookConfiguration</strong> (Validating, pas Mutating)</li>
+      <li>Intercepte <strong>CREATE et UPDATE uniquement</strong> — pas DELETE</li>
+      <li><strong>3 replicas</strong> recommandés pour la HA</li>
+      <li><code>bypass: Disabled</code> = aucun contournement possible (recommandé)</li>
+      <li><code>bypass: BreakGlassAnnotation</code> = bypass via annotation sur le pod</li>
+      <li>Déblocage d'urgence : <code>oc delete validatingwebhookconfiguration stackrox</code></li>
+      <li>Hard enforcement → <strong>API server bloque</strong> (403) — pod jamais créé</li>
+      <li>Soft enforcement → pod créé, puis <strong>scale to 0</strong> par Sensor</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+const tips = {
+  client: {
+    title: '💻 Client',
+    badge: 'kubectl / oc / API',
+    body: `Tout outil qui envoie une requête CREATE ou UPDATE à l'API server OCP.<br><br>
+      Exemples :<br>
+      • <code>kubectl apply -f deployment.yaml</code><br>
+      • <code>oc new-app ...</code><br>
+      • ArgoCD, Helm, Tekton...<br><br>
+      La requête traverse les phases : Authentification → Autorisation → Admission.`
+  },
+  apiserver: {
+    title: '🟢 API Server OCP/K8s',
+    badge: 'kube-apiserver',
+    body: `Point d'entrée de toutes les opérations Kubernetes.<br><br>
+      Phase <strong>Admission</strong> : appelle les webhooks configurés via <code>ValidatingWebhookConfiguration</code>.<br><br>
+      Si le webhook renvoie <code>allowed: false</code> → 403 Forbidden renvoyé au client.<br>
+      Si le webhook ne répond pas → comportement selon <code>failurePolicy</code> (Fail ou Ignore).`
+  },
+  webhook: {
+    title: '🟣 Admission Controller RHACS',
+    badge: 'stackrox namespace',
+    body: `Deployment dans le namespace <code>stackrox</code>, exposé via <code>ValidatingWebhookConfiguration</code>.<br><br>
+      • Reçoit l'<strong>AdmissionReview</strong> de l'API server<br>
+      • Consulte le <strong>Sensor local</strong> pour évaluer les policies RHACS<br>
+      • Renvoie <code>allowed: true/false</code> + message d'erreur<br><br>
+      3 replicas recommandés pour la HA.`
+  },
+  allow: {
+    title: '✅ Allow',
+    badge: 'Aucune violation',
+    body: `Aucune policy RHACS n'est violée pour cette ressource.<br><br>
+      L'Admission Controller renvoie <code>allowed: true</code> à l'API server.<br>
+      Le pod est créé normalement.<br><br>
+      Une violation peut toujours être créée en mode <strong>Inform</strong> même si le pod est autorisé.`
+  },
+  hard: {
+    title: '🔴 Hard Enforcement — DENY',
+    badge: 'Deploy-time block',
+    body: `L'Admission Controller renvoie <code>allowed: false</code>.<br><br>
+      L'API server retourne une erreur <strong>403 Forbidden</strong> au client :<br>
+      <code>"admission webhook denied the request: Policy 'XYZ' violated"</code><br><br>
+      Le pod n'est <strong>jamais créé</strong>.<br>
+      Prérequis : <code>admissionControl.bypass: Disabled</code> dans SecuredCluster.`
+  },
+  soft: {
+    title: '🟠 Soft Enforcement — Scale to 0',
+    badge: 'Deploy-time via Sensor',
+    body: `L'Admission Controller autorise la création (<code>allowed: true</code>).<br><br>
+      Le <strong>Sensor</strong> détecte la violation et scale le Deployment à 0 replicas.<br><br>
+      Le Deployment reste présent dans le cluster avec 0 replicas.<br>
+      Utilisé comme fallback quand Hard Enforcement n'est pas disponible.`
+  },
+  'inform-only': {
+    title: '🔔 Inform Only',
+    badge: 'Détection sans blocage',
+    body: `Le pod est créé normalement.<br><br>
+      Une <strong>violation</strong> est enregistrée dans RHACS (visible dans Violations).<br><br>
+      Aucun impact sur le déploiement.<br>
+      Mode par défaut pour les policies système.`
+  },
+  bypass: {
+    title: '⚙️ bypass',
+    badge: 'admissionControl.bypass',
+    body: `Contrôle si l'Admission Controller peut être contourné.<br><br>
+      <strong>Disabled</strong> (recommandé prod) : aucun bypass possible.<br>
+      <strong>BreakGlassAnnotation</strong> : bypass via annotation :<br>
+      <code>admission.stackrox.io/break-glass: "true"</code><br><br>
+      À n'utiliser qu'en cas d'urgence documentée.`
+  },
+  replicas: {
+    title: '⚙️ replicas',
+    badge: 'Haute disponibilité',
+    body: `Nombre de replicas pour le Deployment admission-control.<br><br>
+      <strong>3</strong> — recommandé pour la production (HA, résistance à la perte d'un nœud).<br>
+      <strong>1</strong> — acceptable en dev/test.<br><br>
+      Si tous les replicas sont indisponibles → comportement selon <code>failurePolicy</code> du webhook.`
+  },
+  'listen-creates': {
+    title: '⚙️ listenOnCreates',
+    badge: 'Webhook scope',
+    body: `Active l'interception des requêtes <strong>CREATE</strong>.<br><br>
+      Doit être <code>true</code> pour que l'Admission Controller évalue les nouveaux pods.<br>
+      Sans cela, les pods créés ne sont jamais évalués en deploy-time.`
+  },
+  'listen-updates': {
+    title: '⚙️ listenOnUpdates',
+    badge: 'Webhook scope',
+    body: `Active l'interception des requêtes <strong>UPDATE</strong>.<br><br>
+      Important pour détecter les modifications de déploiements existants<br>
+      (changement d'image, ajout de variables d'env, modification de privilèges…).`
+  },
+  'enforce-creates': {
+    title: '⚙️ enforceOnCreates',
+    badge: 'Hard enforcement CREATE',
+    body: `Active le <strong>Hard Enforcement</strong> sur les CREATE.<br><br>
+      <code>true</code> → l'Admission Controller bloque les créations en violation.<br>
+      <code>false</code> → les violations sur CREATE sont en Inform uniquement.<br><br>
+      Nécessite <code>listenOnCreates: true</code>.`
+  },
+  'enforce-updates': {
+    title: '⚙️ enforceOnUpdates',
+    badge: 'Hard enforcement UPDATE',
+    body: `Active le <strong>Hard Enforcement</strong> sur les UPDATE.<br><br>
+      <code>true</code> → les modifications de déploiements en violation sont bloquées.<br>
+      <code>false</code> → violations sur UPDATE en Inform uniquement.<br><br>
+      Nécessite <code>listenOnUpdates: true</code>.`
+  },
+  'trouble-block': {
+    title: '🚨 Tous les déploiements bloqués',
+    badge: 'Urgence production',
+    body: `Cause probable : policy trop agressive activée avec Hard Enforcement.<br><br>
+      <strong>Solution immédiate :</strong><br>
+      <code>oc delete validatingwebhookconfiguration stackrox</code><br><br>
+      ⚠️ Cela désactive TOUT l'enforcement RHACS — à ne faire qu'en urgence et à restaurer rapidement.`
+  },
+  'trouble-noblock': {
+    title: '🤔 Policy enforce ne bloque pas',
+    badge: 'Enforcement inactif',
+    body: `Causes possibles :<br>
+      • Admission Controller non déployé<br>
+      • <code>listenOnCreates: false</code> dans SecuredCluster<br>
+      • <code>enforceOnCreates: false</code><br>
+      • Policy en mode Inform uniquement (pas Inform and Enforce)<br>
+      • Namespace exclu dans le scope de la policy`
+  },
+  'trouble-bypass': {
+    title: '🔑 Bypass d\'urgence pod',
+    badge: 'BreakGlassAnnotation',
+    body: `Nécessite <code>bypass: BreakGlassAnnotation</code> dans SecuredCluster.<br><br>
+      Ajouter l'annotation sur le pod :<br>
+      <code>admission.stackrox.io/break-glass: "true"</code><br><br>
+      La violation est quand même enregistrée — le bypass est tracé dans RHACS.`
+  },
+  'trouble-webhook': {
+    title: '🔧 Webhook absent',
+    badge: 'ValidatingWebhookConfiguration',
+    body: `Si <code>oc get validatingwebhookconfiguration</code> ne montre pas de config stackrox :<br><br>
+      1. Vérifier que l'Admission Controller tourne : <code>oc get pods -n stackrox -l app=admission-control</code><br>
+      2. Vérifier la CR SecuredCluster : <code>listenOnCreates: true</code><br>
+      3. Vérifier les secrets du bundle dans <code>stackrox</code>`
+  },
+  'trouble-timeout': {
+    title: '⏱️ Timeout lors des déploiements',
+    badge: 'Performance',
+    body: `L'API server attend la réponse du webhook et dépasse le délai configuré.<br><br>
+      Vérifier la charge des pods admission-control et augmenter les replicas si nécessaire.<br><br>
+      Vérifier aussi la latence réseau entre l'API server et les pods stackrox.`
+  },
+  'trouble-sc': {
+    title: '🔧 Admission Controller absent après CR',
+    badge: 'Init bundle',
+    body: `La CR SecuredCluster a été créée mais les pods admission-control ne démarrent pas.<br><br>
+      Cause la plus fréquente : <strong>secrets de l'init bundle manquants</strong>.<br><br>
+      Solution :<br>
+      <code>oc get secrets -n stackrox | grep tls</code><br>
+      Si absent, réappliquer le bundle dans le namespace stackrox du secured cluster.`
+  }
+};
+
+const tooltip = document.getElementById('tooltip');
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mousemove', e => {
+    const t = tips[el.dataset.tip];
+    if (!t) return;
+    tooltip.innerHTML = `<div class="tip-badge">${t.badge}</div><h4>${t.title}</h4>${t.body}`;
+    tooltip.style.opacity = '1';
+    const x = Math.min(e.clientX + 16, window.innerWidth - 400);
+    const y = Math.min(e.clientY + 16, window.innerHeight - 220);
+    tooltip.style.left = x + 'px';
+    tooltip.style.top  = y + 'px';
+  });
+  el.addEventListener('mouseleave', () => { tooltip.style.opacity = '0'; });
+});
+</script>
+</body>
+</html>

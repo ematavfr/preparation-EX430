@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backup / Restore — RHACS</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+header {
+  background: linear-gradient(135deg, #1a1f2e, #2d0a0a);
+  padding: 24px 40px;
+  border-bottom: 2px solid #cc0000;
+  display: flex; align-items: center; justify-content: space-between;
+}
+header h1 { font-size: 1.8rem; color: #ef4444; }
+header p  { color: #94a3b8; margin-top: 6px; font-size: 0.95rem; }
+.home-btn {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  background: #1a1f2e; border: 2px solid #374151;
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; font-size: 1.3rem;
+  transition: all 0.2s; cursor: pointer;
+}
+.home-btn:hover { border-color: #f97316; background: #2d1a0a; transform: scale(1.12); }
+
+nav {
+  display: flex; gap: 8px; padding: 16px 40px;
+  background: #1a1f2e; border-bottom: 1px solid #2d3748; flex-wrap: wrap;
+}
+nav button {
+  padding: 8px 18px; border-radius: 20px; border: 1px solid #cc0000;
+  background: transparent; color: #ef4444; cursor: pointer; font-size: 0.85rem;
+  transition: all 0.2s;
+}
+nav button:hover, nav button.active { background: #cc0000; color: white; }
+
+.section { display: none; padding: 32px 40px; max-width: 1200px; margin: 0 auto; }
+.section.active { display: block; }
+h2 { font-size: 1.3rem; color: #ef4444; margin-bottom: 20px; }
+h3 { font-size: 1rem; color: #7dd3fc; margin-bottom: 12px; }
+
+#tooltip {
+  position: fixed; background: #1e293b; border: 1px solid #cc0000;
+  border-radius: 10px; padding: 16px 20px; max-width: 380px;
+  font-size: 0.85rem; line-height: 1.6; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s; z-index: 200; color: #e2e8f0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+#tooltip h4 { color: #ef4444; margin-bottom: 8px; }
+#tooltip code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #7dd3fc; }
+#tooltip .tip-badge {
+  display: inline-block; background: #7f1d1d; color: #fca5a5;
+  font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px;
+}
+
+/* ══ SECTION 1 : Types de backup ══ */
+.types-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 36px;
+}
+.type-card {
+  border-radius: 14px; padding: 24px; cursor: pointer; transition: all 0.2s; border: 2px solid;
+}
+.type-card:hover { transform: translateY(-4px); }
+.type-db    { background: #0f1f3d22; border-color: #1d4ed8; }
+.type-deploy{ background: #14532d22; border-color: #15803d; }
+
+.tc-icon  { font-size: 2rem; margin-bottom: 10px; }
+.tc-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+.type-db .tc-title     { color: #93c5fd; }
+.type-deploy .tc-title { color: #86efac; }
+.tc-sub   { font-size: 0.75rem; color: #64748b; margin-bottom: 14px; }
+
+.tc-feat {
+  background: #0f172a; border-radius: 8px; padding: 8px 12px;
+  margin-bottom: 6px; font-size: 0.78rem; color: #94a3b8; border-left: 3px solid;
+}
+.type-db .tc-feat    { border-left-color: #1d4ed8; }
+.type-deploy .tc-feat{ border-left-color: #15803d; }
+.tc-feat strong { color: #e2e8f0; }
+
+/* Workflow arrow */
+.workflow {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  max-width: 680px; margin: 0 auto;
+}
+.wf-step {
+  width: 100%; border-radius: 12px; padding: 16px 20px;
+  border: 1.5px solid; cursor: pointer; transition: all 0.2s;
+}
+.wf-step:hover { transform: scale(1.015); }
+.wf-backup  { background: #0f1f3d22; border-color: #1d4ed8; }
+.wf-restore { background: #450a0a22; border-color: #dc2626; }
+.wf-success { background: #14532d22; border-color: #15803d; }
+.wf-mig     { background: #2d1a0a22; border-color: #c2410c; }
+
+.wf-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.wf-num {
+  width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+}
+.wf-backup .wf-num  { background: #1d4ed8; color: white; }
+.wf-restore .wf-num { background: #dc2626; color: white; }
+.wf-success .wf-num { background: #15803d; color: white; }
+.wf-mig .wf-num     { background: #c2410c; color: white; }
+
+.wf-title { font-weight: 600; font-size: 0.92rem; }
+.wf-backup .wf-title  { color: #93c5fd; }
+.wf-restore .wf-title { color: #fca5a5; }
+.wf-success .wf-title { color: #86efac; }
+.wf-mig .wf-title     { color: #fdba74; }
+
+.wf-body { font-size: 0.78rem; color: #94a3b8; line-height: 1.6; padding-left: 40px; }
+.wf-body code { color: #7dd3fc; font-size: 0.75rem; }
+
+.wf-arrow {
+  display: flex; flex-direction: column; align-items: center; padding: 4px 0;
+}
+.wf-arrow .al { width: 2px; height: 20px; background: #374151; }
+.wf-arrow .at { width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:9px solid #374151; }
+
+/* ══ SECTION 2 : S3 Integration ══ */
+.s3-layout {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px;
+}
+.s3-card {
+  background: #1a1f2e; border-radius: 14px; padding: 20px;
+  border: 1px solid #2d3748; cursor: pointer; transition: all 0.2s;
+}
+.s3-card:hover { border-color: #7dd3fc; transform: translateY(-2px); }
+.s3-title { font-size: 0.9rem; font-weight: 600; color: #7dd3fc; margin-bottom: 12px; }
+
+.param-row {
+  display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;
+}
+.param-key-s3 {
+  font-family: monospace; font-size: 0.75rem; color: #fcd34d;
+  background: #0f172a; padding: 2px 8px; border-radius: 4px;
+  white-space: nowrap; flex-shrink: 0; margin-top: 1px;
+}
+.param-desc {
+  font-size: 0.75rem; color: #94a3b8; line-height: 1.4;
+}
+.param-desc strong { color: #e2e8f0; }
+
+.s3cfg-box {
+  background: #0f172a; border-radius: 10px; padding: 16px 18px;
+  font-family: monospace; font-size: 0.8rem; line-height: 1.9;
+  border: 1px solid #374151; margin-bottom: 16px;
+}
+.cfg-section { color: #c084fc; }
+.cfg-key     { color: #7dd3fc; }
+.cfg-val     { color: #fcd34d; }
+.cfg-comment { color: #4b5563; }
+
+/* ══ SECTION 3 : roxctl + s3cmd ══ */
+.cmd-block {
+  background: #0f172a; border-radius: 10px; padding: 16px 18px;
+  font-family: monospace; font-size: 0.82rem; line-height: 1.9;
+  border: 1px solid #374151; margin-bottom: 14px; overflow-x: auto; cursor: pointer;
+  transition: border-color 0.2s;
+}
+.cmd-block:hover { border-color: #cc0000; }
+.cmd-comment { color: #4b5563; }
+.cmd-kw  { color: #7dd3fc; }
+.cmd-str { color: #fcd34d; }
+.cmd-flag{ color: #c084fc; }
+.cmd-env { color: #86efac; }
+.cmd-success { color: #4ade80; font-weight: 600; }
+
+/* auth table */
+.auth-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-bottom: 20px; }
+.auth-table th {
+  background: #1a1f2e; color: #ef4444; text-align: left;
+  padding: 10px 16px; border-bottom: 2px solid #cc0000;
+}
+.auth-table td { padding: 10px 16px; border-bottom: 1px solid #2d3748; }
+.auth-table tr:hover td { background: #1a1f2e; }
+.badge-method { background: #0f1f3d; color: #7dd3fc; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; }
+.badge-var    { background: #14532d; color: #86efac; padding: 2px 8px; border-radius: 6px; font-family: monospace; font-size: 0.72rem; }
+
+.exam-box {
+  background: #0f172a; border: 1px solid #cc0000; border-radius: 12px;
+  padding: 20px 24px; margin-top: 24px;
+}
+.exam-box h3 { color: #ef4444; margin-bottom: 12px; }
+.exam-box li { font-size: 0.85rem; color: #94a3b8; margin-left: 20px; margin-bottom: 6px; line-height: 1.5; }
+.exam-box strong { color: #e2e8f0; }
+.exam-box code { color: #7dd3fc; font-size: 0.8rem; }
+
+.success-msg {
+  background: #14532d33; border: 1px solid #15803d; border-radius: 10px;
+  padding: 12px 18px; font-family: monospace; font-size: 0.85rem;
+  color: #86efac; margin-top: 12px; text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<header>
+  <div>
+    <h1>Backup / Restore — RHACS</h1>
+    <p>Types de backup · Intégration S3 · roxctl · s3cmd</p>
+  </div>
+  <a class="home-btn" href="index.html" title="Retour au menu">🏠</a>
+</header>
+
+<nav>
+  <button class="active" onclick="show('types', this)">Types de backup</button>
+  <button onclick="show('s3', this)">Intégration S3</button>
+  <button onclick="show('cli', this)">roxctl &amp; s3cmd</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 1 : Types de backup                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="types" class="section active">
+  <h2>2 types de backup dans RHACS</h2>
+
+  <div class="types-grid">
+    <div class="type-card type-db" data-tip="db-backup">
+      <div class="tc-icon">🗄️</div>
+      <div class="tc-title">Central Database Backup</div>
+      <div class="tc-sub">Sauvegarde des données</div>
+      <div class="tc-feat"><strong>Contenu</strong> : base PostgreSQL complète</div>
+      <div class="tc-feat"><strong>Inclut</strong> : policies, violations, CVE, config, network baselines</div>
+      <div class="tc-feat"><strong>Format</strong> : fichier <code>.zip</code> contenant la DB</div>
+      <div class="tc-feat"><strong>Cas d'usage</strong> : récupération après corruption ou perte de données</div>
+      <div class="tc-feat"><strong>Méthodes</strong> : automatique (S3) ou à la demande (roxctl)</div>
+      <div class="tc-feat"><strong>Restore</strong> : <code>roxctl central db restore &lt;fichier.zip&gt;</code></div>
+    </div>
+
+    <div class="type-card type-deploy" data-tip="deploy-backup">
+      <div class="tc-icon">🚢</div>
+      <div class="tc-title">Central Deployment Backup</div>
+      <div class="tc-sub">Sauvegarde de l'installation</div>
+      <div class="tc-feat"><strong>Contenu</strong> : certificats TLS, secrets, manifests de déploiement</div>
+      <div class="tc-feat"><strong>Inclut</strong> : init bundles, clés de chiffrement, configuration Operator</div>
+      <div class="tc-feat"><strong>Cas d'usage</strong> : migration vers un autre cluster ou namespace</div>
+      <div class="tc-feat"><strong>Ordre critique</strong> : restaurer les <strong>certificats d'abord</strong></div>
+      <div class="tc-feat"><strong>Pourquoi</strong> : les tokens Sensor et connections restent valides</div>
+      <div class="tc-feat"><strong>Restore</strong> : via scripts RHACS ou l'Operator</div>
+    </div>
+  </div>
+
+  <h3>Workflow complet — Backup DB puis Restore</h3>
+  <div class="workflow">
+
+    <div class="wf-step wf-backup" data-tip="wf-backup">
+      <div class="wf-header">
+        <div class="wf-num">1</div>
+        <div class="wf-title">Configurer les variables d'environnement</div>
+      </div>
+      <div class="wf-body">
+        <code>export ROX_ENDPOINT=central-stackrox.ocp4.example.com:443</code><br>
+        <code>export ROX_API_TOKEN=&lt;api_token&gt;</code>
+      </div>
+    </div>
+
+    <div class="wf-arrow"><div class="al"></div><div class="at"></div></div>
+
+    <div class="wf-step wf-backup" data-tip="wf-trigger">
+      <div class="wf-header">
+        <div class="wf-num">2</div>
+        <div class="wf-title">Déclencher le backup à la demande</div>
+      </div>
+      <div class="wf-body">
+        <code>roxctl central backup --output ~/backups/</code><br>
+        → Crée un fichier <code>backup_YYYY-MM-DD_HH-MM.zip</code> dans le répertoire spécifié
+      </div>
+    </div>
+
+    <div class="wf-arrow"><div class="al"></div><div class="at"></div></div>
+
+    <div class="wf-step wf-restore" data-tip="wf-restore">
+      <div class="wf-header">
+        <div class="wf-num">3</div>
+        <div class="wf-title">Restaurer la base de données</div>
+      </div>
+      <div class="wf-body">
+        <code>roxctl central db restore ~/backups/backup_2025-02-25.zip</code><br>
+        → Transfère le fichier vers Central et restaure la DB PostgreSQL
+      </div>
+    </div>
+
+    <div class="wf-arrow"><div class="al"></div><div class="at"></div></div>
+
+    <div class="wf-step wf-success" data-tip="wf-success">
+      <div class="wf-header">
+        <div class="wf-num">✓</div>
+        <div class="wf-title">Message de confirmation</div>
+      </div>
+      <div class="wf-body">
+        Transfert : <code>Transferring data at 1.9 MiB/s (ETA 00:00:00)</code><br>
+        Succès : <code style="color:#4ade80;font-weight:600">Successfully restored DB</code>
+      </div>
+    </div>
+
+  </div>
+
+  <h3 style="margin-top:32px">Workflow migration — Restore du déploiement</h3>
+  <div class="workflow">
+    <div class="wf-step wf-mig" data-tip="mig-certs">
+      <div class="wf-header">
+        <div class="wf-num">1</div>
+        <div class="wf-title">Restaurer les certificats en premier</div>
+      </div>
+      <div class="wf-body">
+        Restaurer les secrets TLS (init bundle, certificats Central)<br>
+        <code>oc apply -f certificates-bundle.yaml -n stackrox</code><br>
+        ⚠️ <strong>Obligatoire en premier</strong> — sinon les Sensors ne peuvent pas se reconnecter
+      </div>
+    </div>
+    <div class="wf-arrow"><div class="al"></div><div class="at"></div></div>
+    <div class="wf-step wf-mig" data-tip="mig-deploy">
+      <div class="wf-header">
+        <div class="wf-num">2</div>
+        <div class="wf-title">Restaurer le déploiement Central</div>
+      </div>
+      <div class="wf-body">
+        Via l'Operator : recréer la CR <code>Central</code> dans le namespace <code>stackrox</code><br>
+        Les Sensors se reconnectent automatiquement avec les certificats restaurés
+      </div>
+    </div>
+    <div class="wf-arrow"><div class="al"></div><div class="at"></div></div>
+    <div class="wf-step wf-restore" data-tip="mig-db">
+      <div class="wf-header">
+        <div class="wf-num">3</div>
+        <div class="wf-title">Restaurer la base de données</div>
+      </div>
+      <div class="wf-body">
+        <code>roxctl central db restore &lt;backup.zip&gt;</code><br>
+        Restaure policies, violations, CVE, config depuis le dernier backup DB
+      </div>
+    </div>
+  </div>
+
+  <div class="exam-box">
+    <h3>Points clés — types de backup</h3>
+    <ul>
+      <li><strong>DB backup</strong> → <code>roxctl central backup</code> → fichier <code>.zip</code></li>
+      <li><strong>Deployment backup</strong> → certificats + secrets → migration cluster</li>
+      <li>Ordre migration : <strong>certificats d'abord</strong> → déploiement → DB restore</li>
+      <li>Message de succès restore : <strong>"Successfully restored DB"</strong></li>
+      <li>Rôle requis pour backup/restore : <strong>Admin</strong></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 2 : Intégration S3                             -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="s3" class="section">
+  <h2>Intégration Object Storage (backup automatique)</h2>
+
+  <div class="s3-layout">
+    <div class="s3-card" data-tip="s3-config">
+      <div class="s3-title">Paramètres de l'intégration S3</div>
+      <div class="param-row">
+        <div class="param-key-s3">Integration name</div>
+        <div class="param-desc">Nom descriptif de l'intégration (ex: <strong>odf-integration</strong>)</div>
+      </div>
+      <div class="param-row">
+        <div class="param-key-s3">Backups to retain</div>
+        <div class="param-desc">Nombre de fichiers à conserver (ex: <strong>5</strong>)</div>
+      </div>
+      <div class="param-row">
+        <div class="param-key-s3">Schedule interval</div>
+        <div class="param-desc">Fréquence : <strong>Daily</strong> ou <strong>Weekly</strong></div>
+      </div>
+      <div class="param-row">
+        <div class="param-key-s3">Bucket</div>
+        <div class="param-desc">Nom du bucket S3 (récupérer via <code>cm/backup-acs</code>)</div>
+      </div>
+      <div class="param-row">
+        <div class="param-key-s3">Endpoint</div>
+        <div class="param-desc">URL endpoint S3 (route ODF ou URL AWS)</div>
+      </div>
+      <div class="param-row">
+        <div class="param-key-s3">Region</div>
+        <div class="param-desc"><strong>us-east-1</strong> pour ODF/Ceph</div>
+      </div>
+      <div class="param-row">
+        <div class="param-key-s3">URL style</div>
+        <div class="param-desc"><strong>Path</strong> pour ODF (pas Virtual hosted)</div>
+      </div>
+      <div class="param-row">
+        <div class="param-key-s3">Access Key ID</div>
+        <div class="param-desc">Clé d'accès S3 (récupérer via <code>secret/backup-acs</code>)</div>
+      </div>
+      <div class="param-row">
+        <div class="param-key-s3">Secret Access Key</div>
+        <div class="param-desc">Clé secrète S3 (récupérer via <code>secret/backup-acs</code>)</div>
+      </div>
+    </div>
+
+    <div class="s3-card" data-tip="s3-workflow">
+      <div class="s3-title">Chemin UI + récupération credentials</div>
+      <div style="background:#0f172a;border-radius:8px;padding:12px 14px;font-size:0.78rem;color:#94a3b8;margin-bottom:14px;line-height:1.8">
+        Platform Configuration<br>
+        → Integrations<br>
+        → External Backups <em>(ou Backup Integrations)</em><br>
+        → <strong>S3 API Compatible</strong><br>
+        → New Integration<br>
+        → remplir les paramètres<br>
+        → <strong>Test</strong> (obligatoire)<br>
+        → <strong>Save</strong>
+      </div>
+      <div style="font-size:0.78rem;color:#94a3b8;line-height:1.8">
+        Trigger manuel :<br>
+        <em>menu ⋮ → <strong>Trigger backup</strong></em><br>
+        (pas de notification — vérifier avec <code>s3cmd la</code>)
+      </div>
+    </div>
+  </div>
+
+  <h3>Récupérer les credentials ODF (oc extract)</h3>
+  <div class="cmd-block" data-tip="oc-extract">
+    <span class="cmd-comment"># Nom du bucket</span><br>
+    <span class="cmd-kw">oc</span> extract <span class="cmd-flag">--to=-</span> <span class="cmd-str">cm/backup-acs</span> <span class="cmd-flag">-n</span> <span class="cmd-str">integration-backup</span><br>
+    <span class="cmd-comment"># → BUCKET_NAME=backup-acs-b2cdf931-0ec5-41a9-9b31-033d360d3a38</span><br>
+    <br>
+    <span class="cmd-comment"># Credentials AWS</span><br>
+    <span class="cmd-kw">oc</span> extract <span class="cmd-flag">--to=-</span> <span class="cmd-str">secret/backup-acs</span> <span class="cmd-flag">-n</span> <span class="cmd-str">integration-backup</span><br>
+    <span class="cmd-comment"># → AWS_ACCESS_KEY_ID=...</span><br>
+    <span class="cmd-comment"># → AWS_SECRET_ACCESS_KEY=...</span><br>
+    <br>
+    <span class="cmd-comment"># Route publique S3 (endpoint)</span><br>
+    <span class="cmd-kw">oc</span> get route <span class="cmd-str">s3</span> <span class="cmd-flag">-n</span> <span class="cmd-str">openshift-storage</span><br>
+    <span class="cmd-comment"># → s3-openshift-storage.apps.ocp4.example.com</span>
+  </div>
+
+  <h3>Configuration s3cmd (~/.s3cfg)</h3>
+  <div class="s3cfg-box" data-tip="s3cfg">
+<span class="cfg-section">[default]</span><br>
+<span class="cfg-key">access_key</span> = <span class="cfg-val">Z9VYaOjvJVveQ1Az4rkX</span><br>
+<span class="cfg-key">secret_key</span> = <span class="cfg-val">MWykFQTUVUHLw3Lgjvts+WUBu2QH6hF1XLuXYYsR</span><br>
+<span class="cfg-key">host_base</span> = <span class="cfg-val">s3-openshift-storage.apps.ocp4.example.com</span><br>
+<span class="cfg-key">host_bucket</span> = <span class="cfg-val">s3-openshift-storage.apps.ocp4.example.com/%(bucket)s</span><br>
+<span class="cfg-anno" data-tip="sig-v2"><span class="cfg-key">signature_v2</span> = <span class="cfg-val">True</span></span>&nbsp;&nbsp;<span class="cfg-comment"># Requis pour ODF/Ceph</span>
+  </div>
+
+  <div class="exam-box">
+    <h3>Points clés — intégration S3</h3>
+    <ul>
+      <li>Chemin : <strong>Platform Configuration → Integrations → External Backups</strong></li>
+      <li>Type : <strong>S3 API Compatible</strong> pour ODF/Ceph, MinIO (non officiel Red Hat)</li>
+      <li>URL style : <strong>Path</strong> pour ODF (pas Virtual hosted)</li>
+      <li>Toujours cliquer <strong>Test</strong> avant Save</li>
+      <li>Trigger manuel : menu <strong>⋮ → Trigger backup</strong> (pas de notification — vérifier avec <code>s3cmd la</code>)</li>
+      <li>Config s3cmd : fichier <strong>~/.s3cfg</strong> avec <code>signature_v2 = True</code> pour ODF</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 3 : roxctl & s3cmd                             -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="cli" class="section">
+  <h2>Commandes CLI — roxctl &amp; s3cmd</h2>
+
+  <h3>roxctl — backup &amp; restore</h3>
+
+  <div class="cmd-block" data-tip="roxctl-backup">
+    <span class="cmd-comment"># Variables d'environnement (commun aux deux méthodes)</span><br>
+    <span class="cmd-env">export</span> <span class="cmd-kw">ROX_ENDPOINT</span>=<span class="cmd-str">central-stackrox.ocp4.example.com:443</span><br>
+    <br>
+    <span class="cmd-comment"># Méthode 1 : avec API token</span><br>
+    <span class="cmd-env">export</span> <span class="cmd-kw">ROX_API_TOKEN</span>=<span class="cmd-str">&lt;api_token&gt;</span><br>
+    <span class="cmd-kw">roxctl</span> central backup<br>
+    <br>
+    <span class="cmd-comment"># Méthode 2 : avec mot de passe admin</span><br>
+    <span class="cmd-kw">roxctl</span> <span class="cmd-flag">-p</span> <span class="cmd-str">&lt;admin_password&gt;</span> central backup<br>
+    <br>
+    <span class="cmd-comment"># Avec répertoire de sortie</span><br>
+    <span class="cmd-kw">roxctl</span> central backup <span class="cmd-flag">--output</span> <span class="cmd-str">/tmp/backups/</span><br>
+    <span class="cmd-comment"># → backup_2025-02-25_14-30.zip</span>
+  </div>
+
+  <div class="cmd-block" data-tip="roxctl-restore">
+    <span class="cmd-comment"># Restore de la base de données (rôle Admin requis)</span><br>
+    <span class="cmd-env">export</span> <span class="cmd-kw">ROX_ENDPOINT</span>=<span class="cmd-str">central-stackrox.ocp4.example.com:443</span><br>
+    <br>
+    <span class="cmd-comment"># Avec API token</span><br>
+    <span class="cmd-env">export</span> <span class="cmd-kw">ROX_API_TOKEN</span>=<span class="cmd-str">&lt;api_token&gt;</span><br>
+    <span class="cmd-kw">roxctl</span> central db restore <span class="cmd-str">postgres_db.sql.zip</span><br>
+    <br>
+    <span class="cmd-comment"># Avec mot de passe admin</span><br>
+    <span class="cmd-kw">roxctl</span> <span class="cmd-flag">-p</span> <span class="cmd-str">&lt;admin_password&gt;</span> central db restore <span class="cmd-str">postgres_db.sql.zip</span>
+  </div>
+
+  <div class="success-msg">
+    Transferring data at 1.9 MiB/s (ETA 00:00:00)<br>
+    <strong>Successfully restored DB</strong>
+  </div>
+
+  <h3 style="margin-top:28px">s3cmd — vérification des backups dans le bucket</h3>
+
+  <div class="cmd-block" data-tip="s3cmd-la">
+    <span class="cmd-comment"># Lister TOUS les objets de tous les buckets (commande principale de vérification)</span><br>
+    <span class="cmd-kw">s3cmd</span> la<br>
+    <span class="cmd-comment"># 2025-02-25 12:19  9136871  s3://backup-acs-.../backup_2025-02-25.zip</span>
+  </div>
+
+  <div class="cmd-block" data-tip="s3cmd-ls">
+    <span class="cmd-comment"># Lister les buckets disponibles</span><br>
+    <span class="cmd-kw">s3cmd</span> ls<br>
+    <br>
+    <span class="cmd-comment"># Lister le contenu d'un bucket spécifique</span><br>
+    <span class="cmd-kw">s3cmd</span> ls <span class="cmd-str">s3://backup-acs-b2cdf931-0ec5-41a9-9b31-033d360d3a38/</span><br>
+    <br>
+    <span class="cmd-comment"># Télécharger un fichier de backup</span><br>
+    <span class="cmd-kw">s3cmd</span> get <span class="cmd-str">s3://bucket/acs/backup_2025-02-25.zip</span> <span class="cmd-str">./backup.zip</span>
+  </div>
+
+  <h3>Authentification roxctl</h3>
+  <table class="auth-table">
+    <thead>
+      <tr>
+        <th>Méthode</th>
+        <th>Variable / Option</th>
+        <th>Usage</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge-method">API token</span></td>
+        <td><span class="badge-var">export ROX_API_TOKEN=&lt;token&gt;</span></td>
+        <td style="font-size:0.8rem;color:#94a3b8">Automatisation CI/CD — rôle Admin requis pour backup/restore</td>
+      </tr>
+      <tr>
+        <td><span class="badge-method">Mot de passe admin</span></td>
+        <td><span class="badge-var">-p &lt;admin_password&gt;</span></td>
+        <td style="font-size:0.8rem;color:#94a3b8">Utilisation manuelle / urgence</td>
+      </tr>
+      <tr>
+        <td><span class="badge-method">Endpoint</span></td>
+        <td><span class="badge-var">export ROX_ENDPOINT=central:443</span></td>
+        <td style="font-size:0.8rem;color:#94a3b8">Commun aux deux méthodes — toujours requis</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="exam-box">
+    <h3>Résumé complet pour l'examen</h3>
+    <ul>
+      <li><strong>2 types</strong> : DB backup (données) vs Deployment backup (config/migration)</li>
+      <li>Backup CLI : <code>roxctl central backup</code> → fichier <strong>.zip</strong></li>
+      <li>Restore CLI : <code>roxctl central db restore &lt;fichier.zip&gt;</code></li>
+      <li>Message succès : <strong>"Successfully restored DB"</strong></li>
+      <li>Migration : certificats <strong>en premier</strong> → déploiement → DB restore</li>
+      <li>Backup auto S3 : <strong>Platform Config → Integrations → External Backups</strong></li>
+      <li>Vérification bucket : <code>s3cmd la</code> (liste tous les objets)</li>
+      <li><code>s3cmd</code> config : <strong>~/.s3cfg</strong> — <code>signature_v2 = True</code> requis pour ODF</li>
+      <li>Rôle requis : <strong>Admin</strong> pour toutes les opérations backup/restore</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+const tips = {
+  'db-backup': {
+    title: '🗄️ Central Database Backup',
+    badge: 'Données RHACS',
+    body: `Sauvegarde complète de la base de données PostgreSQL de Central.<br><br>
+      Contenu :<br>
+      • Policies et leur configuration<br>
+      • Violations historiques<br>
+      • Données CVE et vulnérabilités<br>
+      • Network baselines<br>
+      • Configuration de la plateforme<br><br>
+      Format : fichier <code>.zip</code> contenant le dump PostgreSQL.`
+  },
+  'deploy-backup': {
+    title: '🚢 Central Deployment Backup',
+    badge: 'Migration de cluster',
+    body: `Sauvegarde des composants d'installation de Central.<br><br>
+      Contenu :<br>
+      • Certificats TLS (CA, Central, Sensor)<br>
+      • Init bundles (secrets de connexion Sensor)<br>
+      • Clés de chiffrement<br>
+      • Manifests de déploiement<br><br>
+      ⚠️ Lors de la restauration : <strong>certificats d'abord</strong>, sinon les Sensors ne peuvent pas se reconnecter à Central.`
+  },
+  'wf-backup': {
+    title: '⚙️ Variables d\'environnement',
+    badge: 'Prérequis roxctl',
+    body: `<code>ROX_ENDPOINT</code> : adresse de Central avec port 443.<br>
+      Format : <code>hostname:443</code> (sans https://)<br><br>
+      <code>ROX_API_TOKEN</code> : token d'API avec rôle Admin.<br>
+      Alternative : option <code>-p &lt;password&gt;</code> pour le mot de passe admin.`
+  },
+  'wf-trigger': {
+    title: '💾 roxctl central backup',
+    badge: 'Backup à la demande',
+    body: `Déclenche un backup de la DB Central à la demande.<br><br>
+      Options :<br>
+      • <code>--output &lt;dir&gt;</code> — répertoire de sortie (défaut: répertoire courant)<br><br>
+      Nom du fichier : <code>backup_YYYY-MM-DD_HH-MM.zip</code><br><br>
+      Le fichier est téléchargé depuis Central vers la machine locale.`
+  },
+  'wf-restore': {
+    title: '🔄 roxctl central db restore',
+    badge: 'Restore DB',
+    body: `Restaure la base de données Central depuis un fichier de backup.<br><br>
+      Prérequis :<br>
+      • <code>ROX_ENDPOINT</code> configuré<br>
+      • Authentification Admin (API token ou mot de passe)<br>
+      • Central doit être opérationnel<br><br>
+      Le fichier est transféré vers Central qui restaure la DB.`
+  },
+  'wf-success': {
+    title: '✅ Message de succès',
+    badge: 'Point d\'examen',
+    body: `Message affiché pendant le restore :<br><br>
+      <code>Transferring data at 1.9 MiB/s (ETA 00:00:00)</code><br><br>
+      Message de confirmation :<br>
+      <code style="color:#4ade80">Successfully restored DB</code><br><br>
+      Ce message exact est à retenir pour l'examen.`
+  },
+  'mig-certs': {
+    title: '🔑 Certificats en premier',
+    badge: 'Ordre critique — migration',
+    body: `Lors d'une migration de Central vers un autre cluster :<br><br>
+      Les certificats TLS doivent être restaurés <strong>avant</strong> le déploiement de Central.<br><br>
+      Pourquoi ? Les Sensors des secured clusters utilisent ces certificats pour authentifier Central.<br>
+      Si les certificats changent → tous les Sensors perdent la connexion et doivent être ré-enregistrés.`
+  },
+  'mig-deploy': {
+    title: '🚢 Déploiement Central',
+    badge: 'Étape 2 migration',
+    body: `Recréer la CR <code>Central</code> dans le namespace <code>stackrox</code> du nouveau cluster.<br><br>
+      L'Operator RHACS déploie Central avec les secrets déjà présents (certificats restaurés en étape 1).<br><br>
+      Les Sensors se reconnectent automatiquement — leurs init bundles restent valides.`
+  },
+  'mig-db': {
+    title: '🗄️ Restore DB post-migration',
+    badge: 'Étape 3 migration',
+    body: `Après que Central est opérationnel sur le nouveau cluster :<br><br>
+      <code>roxctl central db restore &lt;backup.zip&gt;</code><br><br>
+      Restaure toutes les données : policies, violations, CVE, config.<br><br>
+      L'environnement est ainsi identique à l'état avant la migration.`
+  },
+  's3-config': {
+    title: '⚙️ Paramètres intégration S3',
+    badge: 'Platform Config → Integrations',
+    body: `Paramètres clés à retenir :<br><br>
+      • <strong>URL style = Path</strong> pour ODF/Ceph (pas Virtual hosted)<br>
+      • <strong>Region = us-east-1</strong> pour ODF (même si pas AWS)<br>
+      • <strong>Endpoint</strong> = URL interne S3 (pas la route publique)<br><br>
+      Toujours cliquer <strong>Test</strong> avant Save pour valider la configuration.`
+  },
+  's3-workflow': {
+    title: '🖥️ Workflow UI S3',
+    badge: 'Trigger backup',
+    body: `Après configuration de l'intégration :<br><br>
+      Trigger manuel : <strong>menu ⋮ → Trigger backup</strong><br><br>
+      ⚠️ Aucune notification dans l'UI — RHACS lance le backup en arrière-plan.<br><br>
+      Vérification : utiliser <code>s3cmd la</code> pour confirmer l'arrivée du fichier dans le bucket.`
+  },
+  'oc-extract': {
+    title: '🔑 oc extract',
+    badge: 'Récupération credentials',
+    body: `<code>oc extract --to=-</code> affiche le contenu d'un ConfigMap ou Secret directement dans le terminal.<br><br>
+      Namespace <code>integration-backup</code> — créé lors de la mise en place du bucket ODF pour RHACS.<br><br>
+      Le BUCKET_NAME contient un UUID unique généré lors de la création du bucket.`
+  },
+  's3cfg': {
+    title: '📄 ~/.s3cfg',
+    badge: 'Configuration s3cmd',
+    body: `Fichier de configuration de s3cmd.<br><br>
+      Paramètres clés :<br>
+      • <code>access_key</code> / <code>secret_key</code> — credentials du bucket<br>
+      • <code>host_base</code> — endpoint S3 sans le nom du bucket<br>
+      • <code>host_bucket</code> — pattern avec <code>%(bucket)s</code><br>
+      • <code>signature_v2 = True</code> — requis pour ODF/Ceph et certains backends compatibles S3`
+  },
+  'sig-v2': {
+    title: '⚙️ signature_v2 = True',
+    badge: 'Requis pour ODF/Ceph',
+    body: `ODF/Ceph et certains backends S3 compatibles nécessitent la signature AWS v2 (plus ancienne).<br><br>
+      AWS S3 officiel utilise v4 par défaut.<br><br>
+      Sans ce paramètre → erreur d'authentification avec ODF.<br><br>
+      ⚠️ Point d'examen fréquent.`
+  },
+  'roxctl-backup': {
+    title: '💾 roxctl central backup',
+    badge: 'Commande backup',
+    body: `Télécharge un snapshot de la DB Central localement.<br><br>
+      Prérequis :<br>
+      • <code>ROX_ENDPOINT</code> (obligatoire)<br>
+      • <code>ROX_API_TOKEN</code> avec rôle Admin, ou <code>-p &lt;password&gt;</code><br><br>
+      Option <code>--output</code> : répertoire de destination du fichier.`
+  },
+  'roxctl-restore': {
+    title: '🔄 roxctl central db restore',
+    badge: 'Commande restore',
+    body: `Transfert le fichier de backup vers Central pour restauration.<br><br>
+      Central doit être <strong>en cours d'exécution</strong> pour accepter le restore.<br><br>
+      La DB est remplacée par le contenu du backup — toutes les données actuelles sont écrasées.<br><br>
+      Message final : <code style="color:#4ade80">Successfully restored DB</code>`
+  },
+  's3cmd-la': {
+    title: '📋 s3cmd la',
+    badge: 'Commande principale de vérification',
+    body: `Liste <strong>tous</strong> les objets de <strong>tous</strong> les buckets accessibles.<br><br>
+      Format de sortie :<br>
+      <code>DATE  TAILLE  s3://bucket/chemin/fichier.zip</code><br><br>
+      C'est la commande à utiliser pour confirmer qu'un backup est arrivé dans le bucket après un Trigger.`
+  },
+  's3cmd-ls': {
+    title: '📋 s3cmd ls',
+    badge: 'Navigation bucket',
+    body: `<code>s3cmd ls</code> — liste les buckets disponibles<br>
+      <code>s3cmd ls s3://bucket/</code> — liste le contenu d'un bucket<br>
+      <code>s3cmd get s3://bucket/file.zip ./</code> — télécharger un fichier<br><br>
+      Différence avec <code>la</code> : <code>ls</code> est récursif sur un bucket spécifique, <code>la</code> liste tout.`
+  }
+};
+
+const tooltip = document.getElementById('tooltip');
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mousemove', e => {
+    const t = tips[el.dataset.tip];
+    if (!t) return;
+    tooltip.innerHTML = `<div class="tip-badge">${t.badge}</div><h4>${t.title}</h4>${t.body}`;
+    tooltip.style.opacity = '1';
+    const x = Math.min(e.clientX + 16, window.innerWidth - 400);
+    const y = Math.min(e.clientY + 16, window.innerHeight - 220);
+    tooltip.style.left = x + 'px';
+    tooltip.style.top  = y + 'px';
+  });
+  el.addEventListener('mouseleave', () => { tooltip.style.opacity = '0'; });
+});
+</script>
+</body>
+</html>

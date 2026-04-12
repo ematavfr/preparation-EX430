@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture RHACS</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+header {
+  background: linear-gradient(135deg, #1a1f2e, #2d0a0a);
+  padding: 24px 40px;
+  border-bottom: 2px solid #cc0000;
+  display: flex; align-items: center; justify-content: space-between;
+}
+header h1 { font-size: 1.8rem; color: #ef4444; }
+header p  { color: #94a3b8; margin-top: 6px; font-size: 0.95rem; }
+.home-btn {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  background: #1a1f2e; border: 2px solid #374151;
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; font-size: 1.3rem;
+  transition: all 0.2s; cursor: pointer;
+}
+.home-btn:hover { border-color: #f97316; background: #2d1a0a; transform: scale(1.12); }
+
+nav {
+  display: flex; gap: 8px; padding: 16px 40px;
+  background: #1a1f2e; border-bottom: 1px solid #2d3748; flex-wrap: wrap;
+}
+nav button {
+  padding: 8px 18px; border-radius: 20px; border: 1px solid #cc0000;
+  background: transparent; color: #ef4444; cursor: pointer; font-size: 0.85rem;
+  transition: all 0.2s;
+}
+nav button:hover, nav button.active { background: #cc0000; color: white; }
+
+.section { display: none; padding: 32px 40px; max-width: 1300px; margin: 0 auto; }
+.section.active { display: block; }
+h2 { font-size: 1.3rem; color: #ef4444; margin-bottom: 20px; }
+h3 { font-size: 1rem; color: #7dd3fc; margin-bottom: 10px; }
+
+/* ── Tooltip ── */
+#tooltip {
+  position: fixed; background: #1e293b; border: 1px solid #cc0000;
+  border-radius: 10px; padding: 16px 20px; max-width: 380px;
+  font-size: 0.85rem; line-height: 1.6; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s; z-index: 200; color: #e2e8f0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+#tooltip h4 { color: #ef4444; margin-bottom: 8px; }
+#tooltip code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #7dd3fc; }
+#tooltip .tip-badge {
+  display: inline-block; background: #7f1d1d; color: #fca5a5;
+  font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px;
+}
+
+/* ══ SECTION 1 : Vue globale ══ */
+.arch-layout {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0; align-items: center;
+}
+
+.cluster-box {
+  border-radius: 16px; padding: 20px;
+}
+.central-box {
+  background: linear-gradient(180deg, #2d0a0a33, #1a0505);
+  border: 2px solid #cc0000;
+}
+.secured-box {
+  background: linear-gradient(180deg, #0f1f3d33, #080f1e);
+  border: 2px solid #1e3a8a;
+}
+
+.cluster-title {
+  text-align: center; font-weight: 700; font-size: 1rem;
+  margin-bottom: 4px;
+}
+.central-box .cluster-title { color: #ef4444; }
+.secured-box .cluster-title { color: #60a5fa; }
+
+.cluster-subtitle { text-align: center; font-size: 0.72rem; color: #64748b; margin-bottom: 16px; }
+
+.comp-card {
+  background: #0f172a; border-radius: 10px; padding: 12px 14px;
+  margin-bottom: 10px; cursor: pointer; border: 1px solid #2d3748;
+  transition: all 0.2s; display: flex; align-items: flex-start; gap: 10px;
+}
+.comp-card:hover { transform: translateX(3px); }
+.comp-card.red   { border-left: 3px solid #cc0000; }
+.comp-card.red:hover   { border-color: #ef4444; background: #2d0a0a22; }
+.comp-card.blue  { border-left: 3px solid #1d4ed8; }
+.comp-card.blue:hover  { border-color: #60a5fa; background: #0f1f3d22; }
+.comp-card.amber { border-left: 3px solid #b45309; }
+.comp-card.amber:hover { border-color: #fbbf24; background: #42200622; }
+.comp-card.green { border-left: 3px solid #15803d; }
+.comp-card.green:hover { border-color: #4ade80; background: #0f231822; }
+
+.comp-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
+.comp-name { font-size: 0.85rem; font-weight: 600; color: #e2e8f0; }
+.comp-sub  { font-size: 0.72rem; color: #64748b; margin-top: 2px; }
+
+/* Arrows */
+.arrow-col {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 0 16px;
+}
+.arrow-h {
+  display: flex; align-items: center; gap: 4px; font-size: 0.7rem; color: #94a3b8;
+}
+.arrow-h .line {
+  width: 60px; height: 2px; background: #cc0000;
+  position: relative;
+}
+.arrow-h .line::after {
+  content: ''; position: absolute; right: -6px; top: -4px;
+  border: 5px solid transparent; border-left: 7px solid #cc0000;
+}
+.arrow-h .line.blue-line { background: #1d4ed8; }
+.arrow-h .line.blue-line::after { border-left-color: #1d4ed8; }
+.arrow-label {
+  font-size: 0.65rem; color: #64748b; white-space: nowrap;
+}
+
+.secured-clusters-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+
+.sc-mini {
+  background: #0f1f3d22; border: 1.5px solid #1e3a8a; border-radius: 12px;
+  padding: 12px; cursor: pointer; transition: all 0.2s;
+}
+.sc-mini:hover { border-color: #3b82f6; background: #0f1f3d44; }
+.sc-mini-title { font-size: 0.8rem; font-weight: 600; color: #93c5fd; margin-bottom: 8px; }
+.sc-tag {
+  display: inline-block; font-size: 0.65rem; padding: 2px 6px; border-radius: 6px; margin: 2px;
+}
+.sc-tag.sensor     { background: #1e3a5f; color: #7dd3fc; }
+.sc-tag.collector  { background: #422006; color: #fbbf24; }
+.sc-tag.admission  { background: #3b1f5e; color: #c084fc; }
+
+/* ══ SECTION 2 : Composants ══ */
+.comp-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;
+}
+.comp-detail {
+  background: #1a1f2e; border-radius: 14px; padding: 20px;
+  border: 1px solid #2d3748; cursor: pointer; transition: all 0.2s;
+}
+.comp-detail:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+.comp-detail.red-card   { border-top: 3px solid #cc0000; }
+.comp-detail.blue-card  { border-top: 3px solid #1d4ed8; }
+.comp-detail.amber-card { border-top: 3px solid #b45309; }
+.comp-detail.purple-card{ border-top: 3px solid #7c3aed; }
+.comp-detail.green-card { border-top: 3px solid #15803d; }
+
+.cd-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.cd-icon { font-size: 1.8rem; }
+.cd-title { font-size: 1rem; font-weight: 700; color: #f1f5f9; }
+.cd-cluster { font-size: 0.72rem; color: #64748b; margin-top: 2px; }
+.cd-body { font-size: 0.82rem; color: #94a3b8; line-height: 1.6; }
+.cd-body li { margin-left: 16px; margin-bottom: 4px; }
+.cd-pill {
+  display: inline-block; margin-top: 10px; padding: 4px 10px; border-radius: 10px;
+  font-size: 0.72rem; background: #0f172a; color: #7dd3fc;
+}
+
+/* ══ SECTION 3 : Flux ══ */
+.flux-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.flux-table th {
+  background: #1a1f2e; color: #ef4444; text-align: left;
+  padding: 12px 16px; border-bottom: 2px solid #cc0000;
+}
+.flux-table td { padding: 10px 16px; border-bottom: 1px solid #2d3748; }
+.flux-table tr:hover td { background: #1a1f2e; }
+.badge-src  { background: #7f1d1d; color: #fca5a5; padding: 2px 8px; border-radius: 8px; font-size: 0.75rem; }
+.badge-dst  { background: #1e3a5f; color: #7dd3fc; padding: 2px 8px; border-radius: 8px; font-size: 0.75rem; }
+.badge-prot { background: #14532d; color: #86efac; padding: 2px 8px; border-radius: 8px; font-size: 0.75rem; }
+
+/* ══ SECTION 4 : Déploiement Operator ══ */
+.deploy-layout { display: flex; flex-direction: column; gap: 24px; }
+.deploy-row {
+  background: #1a1f2e; border-radius: 14px; padding: 20px;
+  border: 1px solid #2d3748;
+}
+.deploy-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+}
+.deploy-badge {
+  background: #cc0000; color: white; font-size: 0.75rem;
+  padding: 4px 12px; border-radius: 10px; font-weight: 600;
+}
+.deploy-title { font-size: 1rem; font-weight: 600; color: #f1f5f9; }
+.deploy-body { display: flex; gap: 16px; flex-wrap: wrap; }
+.deploy-item {
+  background: #0f172a; border-radius: 10px; padding: 12px 16px;
+  border: 1px solid #374151; flex: 1; min-width: 200px;
+}
+.deploy-item-title { font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin-bottom: 6px; }
+.deploy-item-body  { font-size: 0.78rem; color: #64748b; line-height: 1.5; }
+.deploy-item-body code { color: #7dd3fc; font-size: 0.75rem; }
+.arrow-down {
+  text-align: center; font-size: 1.4rem; color: #cc0000; margin: -8px 0;
+}
+</style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<header>
+  <div>
+    <h1>Architecture RHACS</h1>
+    <p>Red Hat Advanced Cluster Security for Kubernetes — Composants et flux</p>
+  </div>
+  <a class="home-btn" href="index.html" title="Retour au menu">🏠</a>
+</header>
+
+<nav>
+  <button class="active" onclick="show('global', this)">Vue globale</button>
+  <button onclick="show('composants', this)">Composants</button>
+  <button onclick="show('flux', this)">Flux de communication</button>
+  <button onclick="show('deploiement', this)">Déploiement Operator</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 1 : Vue globale                                -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="global" class="section active">
+  <h2>Vue globale — Hub cluster et Secured clusters</h2>
+
+  <div class="arch-layout">
+    <!-- Central cluster -->
+    <div class="cluster-box central-box">
+      <div class="cluster-title">Central Cluster</div>
+      <div class="cluster-subtitle">Cluster OCP hébergeant RHACS Central</div>
+
+      <div class="comp-card red" data-tip="central">
+        <span class="comp-icon">🏛️</span>
+        <div>
+          <div class="comp-name">Central</div>
+          <div class="comp-sub">Console Web · API REST/gRPC · PostgreSQL DB</div>
+        </div>
+      </div>
+
+      <div class="comp-card green" data-tip="scanner">
+        <span class="comp-icon">🔍</span>
+        <div>
+          <div class="comp-name">Scanner</div>
+          <div class="comp-sub">Analyse des vulnérabilités d'images (co-localisé)</div>
+        </div>
+      </div>
+
+      <div class="comp-card amber" data-tip="operator-central">
+        <span class="comp-icon">⚙️</span>
+        <div>
+          <div class="comp-name">RHACS Operator</div>
+          <div class="comp-sub">Gère la CR <code style="color:#7dd3fc;font-size:0.75rem">Central</code></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrows -->
+    <div class="arrow-col">
+      <div class="arrow-h">
+        <div class="line"></div>
+      </div>
+      <div class="arrow-label">gRPC/TLS</div>
+      <div class="arrow-label">port 443</div>
+      <br>
+      <div class="arrow-h" style="transform:rotate(180deg)">
+        <div class="line blue-line"></div>
+      </div>
+      <div class="arrow-label">policies</div>
+      <div class="arrow-label">config</div>
+    </div>
+
+    <!-- Secured clusters -->
+    <div class="cluster-box secured-box">
+      <div class="cluster-title">Secured Clusters</div>
+      <div class="cluster-subtitle">1 à N clusters OCP/K8s sécurisés</div>
+
+      <div class="secured-clusters-grid">
+        <div class="sc-mini" data-tip="secured-cluster">
+          <div class="sc-mini-title">cluster-prod</div>
+          <span class="sc-tag sensor">Sensor</span>
+          <span class="sc-tag collector">Collector</span>
+          <span class="sc-tag admission">AdmCtrl</span>
+        </div>
+        <div class="sc-mini" data-tip="secured-cluster">
+          <div class="sc-mini-title">cluster-dev</div>
+          <span class="sc-tag sensor">Sensor</span>
+          <span class="sc-tag collector">Collector</span>
+          <span class="sc-tag admission">AdmCtrl</span>
+        </div>
+        <div class="sc-mini" data-tip="secured-cluster">
+          <div class="sc-mini-title">cluster-staging</div>
+          <span class="sc-tag sensor">Sensor</span>
+          <span class="sc-tag collector">Collector</span>
+          <span class="sc-tag admission">AdmCtrl</span>
+        </div>
+        <div class="sc-mini" data-tip="sensor">
+          <div class="sc-mini-title">Composants / cluster</div>
+          <span class="sc-tag sensor">Sensor — Deployment</span><br>
+          <span class="sc-tag collector">Collector — DaemonSet</span><br>
+          <span class="sc-tag admission">Admission — Webhook</span>
+        </div>
+      </div>
+
+      <div class="comp-card blue" style="margin-top:12px" data-tip="operator-sc">
+        <span class="comp-icon">⚙️</span>
+        <div>
+          <div class="comp-name">RHACS Operator</div>
+          <div class="comp-sub">Gère la CR <code style="color:#7dd3fc;font-size:0.75rem">SecuredCluster</code></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 2 : Composants                                 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="composants" class="section">
+  <h2>Composants RHACS — Rôles détaillés</h2>
+
+  <div class="comp-grid">
+
+    <div class="comp-detail red-card" data-tip="central">
+      <div class="cd-header">
+        <span class="cd-icon">🏛️</span>
+        <div>
+          <div class="cd-title">Central</div>
+          <div class="cd-cluster">Central Cluster — Deployment</div>
+        </div>
+      </div>
+      <div class="cd-body">
+        <ul>
+          <li>Console Web RHACS (port 443)</li>
+          <li>API REST et gRPC</li>
+          <li>Base de données PostgreSQL (violations, config, policies)</li>
+          <li>Point d'entrée unique pour administration</li>
+          <li>Reçoit les données de tous les Sensors</li>
+        </ul>
+        <div class="cd-pill">Namespace : stackrox</div>
+        <div class="cd-pill">CR : Central</div>
+      </div>
+    </div>
+
+    <div class="comp-detail green-card" data-tip="scanner">
+      <div class="cd-header">
+        <span class="cd-icon">🔍</span>
+        <div>
+          <div class="cd-title">Scanner</div>
+          <div class="cd-cluster">Central Cluster — Deployment</div>
+        </div>
+      </div>
+      <div class="cd-body">
+        <ul>
+          <li>Analyse les images pour détecter les CVE</li>
+          <li>Co-localisé avec Central dans le même namespace</li>
+          <li>Interroge les registries via les intégrations configurées</li>
+          <li>Résultats stockés dans la DB Central</li>
+          <li>Modes : Registry, Scanner, Registry+Scanner</li>
+        </ul>
+        <div class="cd-pill">Namespace : stackrox</div>
+        <div class="cd-pill">CR : Central (spec.scanner)</div>
+      </div>
+    </div>
+
+    <div class="comp-detail blue-card" data-tip="sensor">
+      <div class="cd-header">
+        <span class="cd-icon">📡</span>
+        <div>
+          <div class="cd-title">Sensor</div>
+          <div class="cd-cluster">Secured Cluster — Deployment</div>
+        </div>
+      </div>
+      <div class="cd-body">
+        <ul>
+          <li>Agent principal du secured cluster</li>
+          <li>Surveille les ressources Kubernetes (pods, deployments, services…)</li>
+          <li>Communique avec Central en gRPC/TLS port 443</li>
+          <li>Coordonne Collector et Admission Controller</li>
+          <li>Reçoit les policies de Central et les applique localement</li>
+        </ul>
+        <div class="cd-pill">Namespace : stackrox</div>
+        <div class="cd-pill">CR : SecuredCluster</div>
+      </div>
+    </div>
+
+    <div class="comp-detail amber-card" data-tip="collector">
+      <div class="cd-header">
+        <span class="cd-icon">🕵️</span>
+        <div>
+          <div class="cd-title">Collector</div>
+          <div class="cd-cluster">Secured Cluster — DaemonSet (1 pod / node)</div>
+        </div>
+      </div>
+      <div class="cd-body">
+        <ul>
+          <li>Collecte les événements runtime sur chaque nœud</li>
+          <li>Surveille les connexions réseau (flux TCP/UDP)</li>
+          <li>Surveille les processus lancés dans les containers</li>
+          <li>Utilise eBPF ou un kernel module pour l'accès au syscall</li>
+          <li>Envoie les données au Sensor (communication locale)</li>
+        </ul>
+        <div class="cd-pill">Namespace : stackrox</div>
+        <div class="cd-pill">DaemonSet — un pod par nœud</div>
+      </div>
+    </div>
+
+    <div class="comp-detail purple-card" data-tip="admission">
+      <div class="cd-header">
+        <span class="cd-icon">🛡️</span>
+        <div>
+          <div class="cd-title">Admission Controller</div>
+          <div class="cd-cluster">Secured Cluster — ValidatingWebhookConfiguration</div>
+        </div>
+      </div>
+      <div class="cd-body">
+        <ul>
+          <li>Intercepte les requêtes CREATE/UPDATE vers l'API server</li>
+          <li>Évalue les policies RHACS en deploy-time</li>
+          <li>Hard enforcement : bloque la requête (reject 403)</li>
+          <li>Soft enforcement : autorise mais scale to 0 après déploiement</li>
+          <li>3 replicas recommandés pour la HA</li>
+          <li>Bypass : <code>bypass: Disabled</code> dans SecuredCluster</li>
+        </ul>
+        <div class="cd-pill">Namespace : stackrox</div>
+        <div class="cd-pill">CR : SecuredCluster (spec.admissionControl)</div>
+      </div>
+    </div>
+
+    <div class="comp-detail red-card" data-tip="operator-central">
+      <div class="cd-header">
+        <span class="cd-icon">⚙️</span>
+        <div>
+          <div class="cd-title">RHACS Operator</div>
+          <div class="cd-cluster">Chaque cluster (Central + Secured)</div>
+        </div>
+      </div>
+      <div class="cd-body">
+        <ul>
+          <li>Installé via OperatorHub sur chaque cluster</li>
+          <li>CR <code>Central</code> → déploie Central + Scanner</li>
+          <li>CR <code>SecuredCluster</code> → déploie Sensor + Collector + Admission Controller</li>
+          <li>Namespace : <code>rhacs-operator</code> (operator) / <code>stackrox</code> (composants)</li>
+          <li>Gère les mises à jour et la configuration RHACS</li>
+        </ul>
+        <div class="cd-pill">OperatorHub → RHACS Operator</div>
+        <div class="cd-pill">Namespace : rhacs-operator</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 3 : Flux de communication                      -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="flux" class="section">
+  <h2>Flux de communication</h2>
+
+  <table class="flux-table">
+    <thead>
+      <tr>
+        <th>Source</th>
+        <th>Destination</th>
+        <th>Protocole / Port</th>
+        <th>Données transportées</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge-src">Sensor</span></td>
+        <td><span class="badge-dst">Central</span></td>
+        <td><span class="badge-prot">gRPC / TLS 443</span></td>
+        <td>Alertes, événements Kubernetes, violations, état du cluster</td>
+      </tr>
+      <tr>
+        <td><span class="badge-src">Central</span></td>
+        <td><span class="badge-dst">Sensor</span></td>
+        <td><span class="badge-prot">gRPC / TLS 443</span></td>
+        <td>Policies, configuration, commandes de remédiation</td>
+      </tr>
+      <tr>
+        <td><span class="badge-src">Collector</span></td>
+        <td><span class="badge-dst">Sensor</span></td>
+        <td><span class="badge-prot">gRPC local</span></td>
+        <td>Événements réseau, événements processus (syscalls)</td>
+      </tr>
+      <tr>
+        <td><span class="badge-src">Admission Controller</span></td>
+        <td><span class="badge-dst">Sensor</span></td>
+        <td><span class="badge-prot">HTTPS local</span></td>
+        <td>AdmissionReview (CREATE/UPDATE) → décision allow/deny</td>
+      </tr>
+      <tr>
+        <td><span class="badge-src">API Server OCP</span></td>
+        <td><span class="badge-dst">Admission Controller</span></td>
+        <td><span class="badge-prot">HTTPS webhook</span></td>
+        <td>Requêtes de création/modification de ressources</td>
+      </tr>
+      <tr>
+        <td><span class="badge-src">Scanner</span></td>
+        <td><span class="badge-dst">Image Registry</span></td>
+        <td><span class="badge-prot">HTTPS 443/5000</span></td>
+        <td>Pull des layers d'images pour analyse CVE</td>
+      </tr>
+      <tr>
+        <td><span class="badge-src">roxctl CLI</span></td>
+        <td><span class="badge-dst">Central API</span></td>
+        <td><span class="badge-prot">gRPC / TLS 443</span></td>
+        <td>image check, deployment check, backup, netpol…</td>
+      </tr>
+      <tr>
+        <td><span class="badge-src">Central</span></td>
+        <td><span class="badge-dst">S3 / GCS</span></td>
+        <td><span class="badge-prot">HTTPS 443</span></td>
+        <td>Backup automatique de la base de données PostgreSQL</td>
+      </tr>
+      <tr>
+        <td><span class="badge-src">Browser</span></td>
+        <td><span class="badge-dst">Central</span></td>
+        <td><span class="badge-prot">HTTPS 443</span></td>
+        <td>Console Web RHACS</td>
+      </tr>
+      <tr>
+        <td><span class="badge-src">Central</span></td>
+        <td><span class="badge-dst">OIDC Provider</span></td>
+        <td><span class="badge-prot">HTTPS 443</span></td>
+        <td>Authentification via Keycloak / OCP OAuth / Okta…</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <br>
+  <h3>Note : Sensor initie la connexion vers Central</h3>
+  <p style="font-size:0.85rem;color:#94a3b8;line-height:1.6;max-width:700px">
+    C'est toujours le <strong style="color:#7dd3fc">Sensor</strong> qui établit la connexion vers Central (sortant du secured cluster vers le central cluster).
+    Cela simplifie les règles firewall : seul le port <strong style="color:#7dd3fc">443 sortant</strong> depuis le secured cluster est requis.
+    Central n'initie jamais de connexion vers les secured clusters.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 4 : Déploiement Operator                       -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="deploiement" class="section">
+  <h2>Déploiement via l'Operator RHACS</h2>
+
+  <div class="deploy-layout">
+
+    <div class="deploy-row">
+      <div class="deploy-header">
+        <span class="deploy-badge">ÉTAPE 1</span>
+        <span class="deploy-title">Installer l'Operator sur chaque cluster</span>
+      </div>
+      <div class="deploy-body">
+        <div class="deploy-item">
+          <div class="deploy-item-title">OperatorHub</div>
+          <div class="deploy-item-body">
+            OperatorHub → <em>RHACS Operator</em><br>
+            → Install<br>
+            Namespace : <code>rhacs-operator</code><br>
+            À faire sur le Central Cluster <strong>ET</strong> sur chaque Secured Cluster
+          </div>
+        </div>
+        <div class="deploy-item">
+          <div class="deploy-item-title">Via CLI</div>
+          <div class="deploy-item-body">
+            <code>oc apply -f rhacs-operator-subscription.yaml</code><br><br>
+            Channel : <code>stable</code><br>
+            InstallPlan : <code>Automatic</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">↓</div>
+
+    <div class="deploy-row">
+      <div class="deploy-header">
+        <span class="deploy-badge" style="background:#15803d">ÉTAPE 2</span>
+        <span class="deploy-title">Créer la CR Central (sur le Central Cluster)</span>
+      </div>
+      <div class="deploy-body">
+        <div class="deploy-item">
+          <div class="deploy-item-title">CR Central — ce qu'elle déploie</div>
+          <div class="deploy-item-body">
+            → <strong>Central</strong> (Deployment)<br>
+            → <strong>Scanner</strong> (Deployment + DB)<br>
+            → Route HTTPS vers Central<br>
+            → Secret <code>central-tls</code> (certificats)<br>
+            → Secret <code>central-admin-password</code>
+          </div>
+        </div>
+        <div class="deploy-item">
+          <div class="deploy-item-title">Namespace</div>
+          <div class="deploy-item-body">
+            Créer d'abord : <code>oc new-project stackrox</code><br><br>
+            La CR Central se crée dans <code>stackrox</code>
+          </div>
+        </div>
+        <div class="deploy-item">
+          <div class="deploy-item-title">Récupérer le mot de passe admin</div>
+          <div class="deploy-item-body">
+            <code>oc -n stackrox get secret central-admin-password -o jsonpath='{.data.password}' | base64 -d</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">↓</div>
+
+    <div class="deploy-row">
+      <div class="deploy-header">
+        <span class="deploy-badge" style="background:#1d4ed8">ÉTAPE 3</span>
+        <span class="deploy-title">Générer l'init bundle (connexion Sensor → Central)</span>
+      </div>
+      <div class="deploy-body">
+        <div class="deploy-item">
+          <div class="deploy-item-title">Via l'UI RHACS</div>
+          <div class="deploy-item-body">
+            Platform Configuration<br>
+            → Clusters → New cluster<br>
+            → <strong>Generate bundle</strong> (Operator)<br>
+            → Télécharger le fichier YAML de secrets
+          </div>
+        </div>
+        <div class="deploy-item">
+          <div class="deploy-item-title">Via roxctl</div>
+          <div class="deploy-item-body">
+            <code>roxctl central init-bundles generate &lt;nom&gt; --output bundle.yaml</code><br><br>
+            Appliquer sur le secured cluster :<br>
+            <code>oc apply -f bundle.yaml -n stackrox</code>
+          </div>
+        </div>
+        <div class="deploy-item">
+          <div class="deploy-item-title">Contenu du bundle</div>
+          <div class="deploy-item-body">
+            Secrets de certificats TLS permettant à Sensor d'authentifier Central<br><br>
+            ⚠️ À <strong>appliquer sur le secured cluster</strong>, pas sur Central
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">↓</div>
+
+    <div class="deploy-row">
+      <div class="deploy-header">
+        <span class="deploy-badge" style="background:#7c3aed">ÉTAPE 4</span>
+        <span class="deploy-title">Créer la CR SecuredCluster (sur chaque secured cluster)</span>
+      </div>
+      <div class="deploy-body">
+        <div class="deploy-item">
+          <div class="deploy-item-title">CR SecuredCluster — ce qu'elle déploie</div>
+          <div class="deploy-item-body">
+            → <strong>Sensor</strong> (Deployment)<br>
+            → <strong>Collector</strong> (DaemonSet — 1 pod/node)<br>
+            → <strong>Admission Controller</strong> (Deployment, 3 replicas)<br>
+            → <strong>ValidatingWebhookConfiguration</strong>
+          </div>
+        </div>
+        <div class="deploy-item">
+          <div class="deploy-item-title">Spec clé</div>
+          <div class="deploy-item-body">
+            <code>centralEndpoint: central.stackrox.svc:443</code><br>
+            <code>clusterName: mon-cluster</code><br>
+            <code>admissionControl.bypass: Disabled</code><br>
+            <code>admissionControl.replicas: 3</code>
+          </div>
+        </div>
+        <div class="deploy-item">
+          <div class="deploy-item-title">Namespace</div>
+          <div class="deploy-item-body">
+            Créer d'abord : <code>oc new-project stackrox</code><br><br>
+            La CR SecuredCluster se crée dans <code>stackrox</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+const tips = {
+  central: {
+    title: '🏛️ Central',
+    badge: 'Central Cluster',
+    body: `Cerveau de RHACS. Héberge :<br>
+      • Console Web (port 443)<br>
+      • API REST / gRPC<br>
+      • Base de données PostgreSQL<br><br>
+      Toutes les policies, violations et configurations sont stockées ici.<br>
+      Namespace : <code>stackrox</code>`
+  },
+  scanner: {
+    title: '🔍 Scanner',
+    badge: 'Central Cluster',
+    body: `Analyse les images de containers pour détecter les CVE.<br><br>
+      • Co-localisé avec Central dans <code>stackrox</code><br>
+      • Interroge les registries via les intégrations RHACS<br>
+      • Mode recommandé pour l'examen : <strong>Registry+Scanner</strong><br>
+      • Résultats stockés dans la DB Central`
+  },
+  sensor: {
+    title: '📡 Sensor',
+    badge: 'Secured Cluster',
+    body: `Agent principal du secured cluster.<br><br>
+      • Surveille toutes les ressources Kubernetes<br>
+      • Envoie les alertes/événements à Central via <strong>gRPC/TLS port 443</strong><br>
+      • Reçoit les policies de Central<br>
+      • Coordonne Collector et Admission Controller<br><br>
+      ⚠️ C'est <strong>Sensor qui initie</strong> la connexion vers Central (pas l'inverse)`
+  },
+  collector: {
+    title: '🕵️ Collector',
+    badge: 'Secured Cluster — DaemonSet',
+    body: `Collecte les événements runtime sur chaque nœud.<br><br>
+      • <strong>DaemonSet</strong> : un pod par nœud du cluster<br>
+      • Surveille les connexions réseau (flux TCP/UDP)<br>
+      • Surveille les processus lancés dans les containers<br>
+      • Utilise <strong>eBPF</strong> (ou kernel module) pour accéder aux syscalls<br>
+      • Envoie les données au Sensor en local`
+  },
+  admission: {
+    title: '🛡️ Admission Controller',
+    badge: 'Secured Cluster — Webhook',
+    body: `Intercepte les CREATE/UPDATE sur l'API server OCP.<br><br>
+      • <strong>Hard enforcement</strong> : bloque la requête (403)<br>
+      • <strong>Soft enforcement</strong> : autorise mais scale to 0 après<br>
+      • 3 replicas recommandés (HA)<br>
+      • Bypass configurable : <code>admissionControl.bypass: Disabled</code><br><br>
+      Pour débloquer en urgence :<br>
+      <code>oc delete validatingwebhookconfigurations -l app.kubernetes.io/name=stackrox</code>`
+  },
+  'operator-central': {
+    title: '⚙️ RHACS Operator (Central)',
+    badge: 'OperatorHub',
+    body: `Installé depuis OperatorHub sur le cluster hébergeant Central.<br><br>
+      Gère la CR <code>Central</code> qui déploie :<br>
+      • Central (Deployment)<br>
+      • Scanner (Deployment)<br>
+      • Les routes et secrets associés<br><br>
+      Namespace operator : <code>rhacs-operator</code><br>
+      Namespace composants : <code>stackrox</code>`
+  },
+  'operator-sc': {
+    title: '⚙️ RHACS Operator (Secured)',
+    badge: 'OperatorHub — même operator',
+    body: `Le même operator RHACS est installé sur chaque secured cluster.<br><br>
+      Gère la CR <code>SecuredCluster</code> qui déploie :<br>
+      • Sensor (Deployment)<br>
+      • Collector (DaemonSet)<br>
+      • Admission Controller (Deployment × 3)<br><br>
+      ⚠️ Nécessite l'<strong>init bundle</strong> appliqué au préalable dans <code>stackrox</code>`
+  },
+  'secured-cluster': {
+    title: '🔒 Secured Cluster',
+    badge: 'Cluster OCP/K8s protégé',
+    body: `Tout cluster OCP ou Kubernetes importé dans RHACS.<br><br>
+      Contient :<br>
+      • <span style="color:#7dd3fc">Sensor</span> — agent principal<br>
+      • <span style="color:#fbbf24">Collector</span> — runtime (DaemonSet)<br>
+      • <span style="color:#c084fc">Admission Controller</span> — webhook<br><br>
+      Le cluster Central peut lui-même être un secured cluster.`
+  }
+};
+
+const tooltip = document.getElementById('tooltip');
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mousemove', e => {
+    const t = tips[el.dataset.tip];
+    if (!t) return;
+    tooltip.innerHTML = `<div class="tip-badge">${t.badge}</div><h4>${t.title}</h4>${t.body}`;
+    tooltip.style.opacity = '1';
+    const x = Math.min(e.clientX + 16, window.innerWidth - 400);
+    const y = Math.min(e.clientY + 16, window.innerHeight - 200);
+    tooltip.style.left = x + 'px';
+    tooltip.style.top  = y + 'px';
+  });
+  el.addEventListener('mouseleave', () => { tooltip.style.opacity = '0'; });
+});
+</script>
+</body>
+</html>
