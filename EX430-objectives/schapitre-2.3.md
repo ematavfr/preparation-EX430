@@ -2,13 +2,21 @@
 
 ## Catégories de CVE dans RHACS
 
-RHACS classe les CVE en **5 catégories** selon leur source et leur cible :
+Le DO430 définit **3 catégories principales** selon la cible affectée :
 
-| Catégorie | Source | Cible |
+| Catégorie principale | Cible |
+|---|---|
+| **Workload** | Images et conteneurs en cours d'exécution |
+| **Node** | Système hôte des nœuds Kubernetes (OS, kernel, services) |
+| **Platform** | Kubernetes / OpenShift lui-même |
+
+Chaque catégorie se décline en **sous-catégories** dans l'UI :
+
+| Sous-catégorie | Source | Cible |
 |---|---|---|
-| **Image CVE (OS)** | Packages OS dans l'image (rpm, deb, apk) | Image/conteneur |
-| **Image CVE (Language)** | Dépendances langages (pip, npm, maven, go mod, gem) | Image/conteneur |
-| **Node CVE** | Packages OS sur le nœud Kubernetes | Nœud |
+| **Workload — Image OS** | Packages OS dans l'image (rpm, deb, apk) | Image/conteneur |
+| **Workload — Image Language** | Dépendances langages (pip, npm, maven, go mod, gem) | Image/conteneur |
+| **Node CVE** | OS + kernel + containerd/runc/cri-o du nœud | Nœud |
 | **Platform CVE (K8s)** | Kubernetes lui-même | Cluster |
 | **Platform CVE (OpenShift)** | OpenShift (OCP) | Cluster |
 
@@ -84,7 +92,7 @@ Visible dans **Vulnerability Management → Platform CVEs**
 
 ## Résumé pour l'examen
 
-> - **5 catégories** : Image OS, Image Language, Node, Platform K8s, Platform OCP
+> - **3 catégories principales** (DO430) : Workload, Node, Platform — déclinées en 5 sous-catégories dans l'UI
 > - Image OS = packages rpm/deb/apk dans l'image
 > - Image Language = dépendances pip/npm/maven/go dans l'image
 > - Node CVE = packages du système hôte du nœud (via Collector)

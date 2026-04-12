@@ -2,13 +2,19 @@
 
 ## Lifecycle Runtime
 
-Les policies **Runtime** sont évaluées sur l'**activité en cours** dans les conteneurs en cours d'exécution :
-- Processus lancés (nom, path, arguments)
-- Connexions réseau établies
-- Appels système (syscalls)
-- Activité de fichiers
+Les policies **Runtime** sont un **superset** des autres lifecycles (DO430 p.207) :
 
-La détection est assurée par **Collector** (DaemonSet eBPF/kernel module) remontant les événements à Sensor.
+> *"A runtime policy can include all build-time and deploy-time policy criteria. A runtime policy can also include data about process executions during runtime."*
+
+Elles évaluent **à la fois** :
+- Les critères statiques (config du déploiement, CVE des images) — hérités de Build/Deploy
+- L'**activité en cours** dans les conteneurs en cours d'exécution :
+  - Processus lancés (nom, path, arguments)
+  - Connexions réseau établies
+  - Appels système (syscalls)
+  - Activité de fichiers
+
+La détection est assurée par **Collector** (DaemonSet CORE_BPF) remontant les événements à Sensor.
 
 ## Types d'événements Runtime
 
@@ -99,7 +105,7 @@ curl -sk -H "Authorization: Bearer $TOKEN" \
 
 ## Résumé pour l'examen
 
-> - Runtime = détection sur **activité en cours** (process, réseau, syscall) via Collector (eBPF)
+> - Runtime = **superset** : peut inclure critères Build + Deploy + activité en cours (process, réseau, syscall)
 > - Seule action d'enforcement : **Kill pod**
 > - Détection basée sur les événements remontés par Collector → Sensor → Central
 > - Policy Runtime + Enforce = pod supprimé dès la détection

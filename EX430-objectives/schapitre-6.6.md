@@ -13,15 +13,28 @@ La sauvegarde inclut :
 - Certificats et secrets TLS
 - Données de vulnérabilités
 
+## Deux types de sauvegarde (DO430 p.459)
+
+| Type | Contenu | Usage |
+|---|---|---|
+| **Central database backup** | DB PostgreSQL + données | Récupération après corruption/échec DB |
+| **Central deployment backup** | Configuration + certificats | Migration vers un autre cluster/namespace |
+
 ## Déclencher une sauvegarde
 
 ### Via roxctl
 
 ```bash
-# Sauvegarde immédiate vers un fichier local
+# Sauvegarde complète vers un fichier local
 roxctl central backup \
   -e $ROX_ENDPOINT \
   --output ./backup-$(date +%Y%m%d-%H%M).zip
+
+# Sauvegarde des certificats uniquement
+roxctl central backup \
+  -e $ROX_ENDPOINT \
+  --certs-only=true \
+  --output ./certs-$(date +%Y%m%d).zip
 ```
 
 ### Via l'UI
@@ -130,8 +143,9 @@ Test de restauration : mensuel en environnement de test
 
 ## Résumé pour l'examen
 
-> - `roxctl central backup` = sauvegarde directe vers fichier local
-> - Sauvegarde inclut : DB PostgreSQL + certificats + clés
+> - **2 types** : database backup (récupération DB) vs deployment backup (migration cluster)
+> - `roxctl central backup` = sauvegarde complète ; `--certs-only=true` = certificats uniquement
+> - Sauvegarde inclut : DB PostgreSQL + certificats + clés de chiffrement
 > - Restauration : `roxctl central restore <backup.zip>` (Central doit être arrêté)
 > - Après restauration : re-générer les init bundles + restart Sensor
 > - Les Secured Clusters n'ont **pas** de données persistantes à sauvegarder

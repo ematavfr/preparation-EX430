@@ -8,6 +8,15 @@ RHACS affiche les résultats de conformité en les corrélant avec :
 - Les résultats du **Compliance Operator** (scans OpenSCAP)
 - Sa propre évaluation des **policies RHACS** mappées aux contrôles
 
+## Terminologie (DO430)
+
+| Terme | Définition |
+|---|---|
+| **Control** | Ligne d'un standard évaluée par un auditeur (ex: CIS-1.1.1) |
+| **Check** | Test unitaire effectué pour évaluer un contrôle — 1 contrôle peut avoir **plusieurs checks** |
+
+> Les scores RHACS sont calculés au niveau des **controls**. Les résultats détaillés sont au niveau des **checks**.
+
 ## Standards supportés
 
 | Standard | Description |
@@ -85,6 +94,7 @@ RHACS montre l'évolution du score dans le temps :
 
 > - Compliance Dashboard : score global par standard, cluster, namespace
 > - Standards : CIS K8s, CIS OCP4, NIST 800-53, PCI-DSS, HIPAA, SOC 2
+> - **Control** = ligne du standard ; **Check** = test unitaire (1 control → N checks)
 > - RHACS importe automatiquement les résultats du Compliance Operator
 > - Drill-down : standard → contrôle → ressources concernées
 > - Remédiation automatique disponible via `ComplianceRemediation` CR

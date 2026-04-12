@@ -23,16 +23,21 @@ oc describe networkpolicy <name> -n <namespace>
 4. **Simulate** → voir l'impact avant application
 5. **Apply** → appliquer directement sur le cluster
 
-### Via roxctl
+### Via roxctl (build-time, hors-ligne)
 
 ```bash
-roxctl netpol generate \
-  -e $ROX_ENDPOINT \
-  --namespace production \
+# Génère des NetworkPolicies depuis des manifests locaux
+# NE nécessite PAS de connexion à Central
+roxctl netpol generate ./k8s-manifests/ \
   --output-dir ./netpols/
 
 oc apply -f ./netpols/
+
+# Analyser la connectivité réseau déclarée (sans cluster)
+roxctl netpol connectivity map ./k8s-manifests/
 ```
+
+> **Point clé examen** : `roxctl netpol generate` et `connectivity map` fonctionnent **hors-ligne** — ils analysent les manifests YAML locaux sans authentification à Central.
 
 ## Simulation de NetworkPolicy
 
@@ -88,6 +93,7 @@ spec:
 
 > - RHACS **génère et simule** des NetworkPolicies depuis le trafic observé
 > - Workflow : Observer → Générer → **Simuler** → Appliquer
-> - `roxctl netpol generate` = génération CLI des NetworkPolicies
+> - `roxctl netpol generate` = génération **hors-ligne** (manifests locaux, sans auth Central)
+> - `roxctl netpol connectivity map` = analyse de connectivité déclarée (hors-ligne)
 > - **Simuler avant d'appliquer** pour éviter de couper du trafic légitime
 > - DNS (UDP 53 vers kube-dns) doit toujours être autorisé dans l'egress

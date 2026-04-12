@@ -1,15 +1,31 @@
 # 5.3 — Manipulate compliance reports
 
-## Générer un rapport de conformité
+## Deux types de rapports (DO430)
 
-### Via l'UI
+| Type | Format | Contenu | Commande UI |
+|---|---|---|---|
+| **Executive report** | PDF | Score global, graphiques Pass/Fail/N/A | `Download Page as PDF` |
+| **Evidence report** | CSV | Détail technique par check | `Download Evidence as CSV` |
 
-1. **Compliance → [Standard] → Generate Report**
-2. Choisir :
-   - Standard(s) à inclure
-   - Cluster(s) cible(s)
-   - Format : PDF ou CSV
-3. **Download** ou **Email** (si notifier configuré)
+> L'option **Export** est disponible sur **toutes** les pages Compliance et vues filtrées.
+
+## Générer un rapport
+
+### Via l'UI — Compliance Dashboard
+
+1. **Compliance → Dashboard → Export** (onglet en haut à droite)
+2. Sélectionner :
+   - `Download Page as PDF` → rapport exécutif
+   - `Download Evidence as CSV` → rapport technique détaillé
+
+### Rapport à télécharger (file de jobs)
+
+1. **Compliance → Dashboard → Export → Generate download**
+2. Aller dans l'onglet **All report jobs**
+3. Attendre que le statut passe à **Ready for download**
+4. Cliquer **Ready for download** pour télécharger
+
+> Le téléchargement est **asynchrone** — il peut prendre quelques minutes selon le volume de données.
 
 ### Rapport planifié
 
@@ -19,9 +35,7 @@
    - Standards inclus
    - Destinataires (via notifier email)
 
-## Format des rapports
-
-### CSV
+## Format CSV — Evidence report
 
 Colonnes typiques :
 
@@ -35,13 +49,6 @@ Colonnes typiques :
 | Namespace | Si applicable |
 | Resource | Ressource Kubernetes concernée |
 | Evidence | Détail technique |
-
-### PDF
-
-Rapport exécutif avec :
-- Score global par standard
-- Graphiques de répartition Pass/Fail/N/A
-- Liste des contrôles en échec avec recommandations
 
 ## Export via API
 
@@ -89,9 +96,10 @@ RHACS peut pousser les résultats vers :
 
 ## Résumé pour l'examen
 
-> - Rapport manuel : **Compliance → [Standard] → Generate Report** (PDF ou CSV)
+> - **Executive report** (PDF) = `Download Page as PDF` depuis **Compliance → Dashboard → Export**
+> - **Evidence report** (CSV) = `Download Evidence as CSV` — détail technique par check
+> - Téléchargement **asynchrone** : Generate download → All report jobs → Ready for download
 > - Rapport planifié : **Compliance → Reporting → Create Schedule**
-> - Format CSV : contrôle par contrôle avec statut Pass/Fail/N/A
 > - Résultats bruts OpenSCAP accessibles dans le PV du Compliance Operator
 > - Export API : `GET /v1/compliance/results?standard=<standard>`
 > - Pousser les résultats vers SIEM via les notifiers RHACS

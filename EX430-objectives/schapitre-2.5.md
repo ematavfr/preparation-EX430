@@ -11,7 +11,7 @@ RHACS propose deux mécanismes :
 
 ### Via l'UI
 
-1. **Vulnerability Management → Reporting → Create report**
+1. **Vulnerability Management → Vulnerability Reporting → Create report**
 2. Configurer :
 
 | Paramètre | Valeur exemple |
@@ -47,7 +47,8 @@ curl -sk -X POST "$ROX_ENDPOINT/v1/report/run" \
 
 UI : **Vulnerability Management → Workload CVEs → Export**
 
-- Format : CSV avec colonnes CVE, sévérité, CVSS, composant, image, déploiement, namespace
+- Format : **CSV compressé en fichier ZIP** (téléchargeable depuis la colonne Status)
+- Colonnes : CVE, sévérité, CVSS, composant, image, déploiement, namespace
 - Filtres appliqués avant l'export
 
 ```bash
@@ -96,7 +97,7 @@ roxctl image scan --image=registry.io/image:tag \
 
 ## Résumé pour l'examen
 
-> - Rapports planifiés : **Vulnerability Management → Reporting**
+> - Rapports planifiés : **Vulnerability Management → Vulnerability Reporting**
 > - Filtres : sévérité, fixabilité, type d'image, status (observed/deferred)
 > - Collections = scope des ressources ciblées par le rapport
 > - Envoi par email via un notifier configuré

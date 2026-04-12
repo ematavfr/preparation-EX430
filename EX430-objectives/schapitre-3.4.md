@@ -95,6 +95,21 @@ exclusions:
         namespace: "openshift-.*"
 ```
 
+## Vérification en CI/CD — roxctl deployment check
+
+> **Point clé examen** (DO430 p.255) :
+> - `roxctl image check` → vérifie contre les policies **Build-time**
+> - `roxctl deployment check` → vérifie contre les policies **Deploy-time**
+
+```bash
+# Vérifier un manifest de déploiement contre les policies Deploy-time
+roxctl deployment check \
+  --file httpd-deployment.yaml \
+  -e $ROX_ENDPOINT
+
+# Si l'image du manifest est dans un registry connu, Central la scanne également
+```
+
 ## Vérifier les violations Deploy-time
 
 ```bash
@@ -110,5 +125,6 @@ exclusions:
 > - 2 modes : **Inform** (visibilité) ou **Enforce** (blocage ou scale-to-zero)
 > - `SCALE_TO_ZERO_ENFORCEMENT` : agit sur les déploiements existants
 > - `FAIL_DEPLOYMENT_CREATE_ENFORCEMENT` : bloque via Admission Controller webhook
+> - CI/CD : `roxctl image check` → Build-time | `roxctl deployment check` → Deploy-time
 > - Toujours définir un **scope** (cluster/namespace) pour les policies Enforce
 > - Exclure les namespaces système (`openshift-.*`, `kube-system`) pour éviter les faux positifs

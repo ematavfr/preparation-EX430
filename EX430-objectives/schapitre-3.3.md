@@ -66,7 +66,7 @@ The following policy violations were detected:
 # Annotation sur le déploiement pour bypasser le webhook :
 metadata:
   annotations:
-    admission.stackrox.io/bypass-policy-check: "true"
+    admission.stackrox.io/break-glass: "true"
 ```
 
 > Nécessite que `bypass: BreakGlassAnnotation` soit configuré dans SecuredCluster.
@@ -109,5 +109,5 @@ EOF
 > - Intercepte : CREATE/UPDATE workloads + exec/port-forward
 > - **Fail-open** : si timeout (3s), le workload passe et une violation `Attempted` est créée
 > - Enforcement nécessite policy en mode `Enforce` + lifecycle `Deploy`
-> - Bypass : annotation `admission.stackrox.io/bypass-policy-check: "true"` (contrôlé par RBAC)
+> - Bypass : annotation `admission.stackrox.io/break-glass: "true"` (contrôlé par RBAC)
 > - Vérifier l'enregistrement : `oc get validatingwebhookconfigurations | grep stackrox`

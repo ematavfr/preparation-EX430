@@ -27,7 +27,7 @@ La communication est **unidirectionnelle** : Sensor initie la connexion vers Cen
 |---|---|---|
 | **Sensor** | Deployment (1 pod) | Cerveau local. Reçoit policies de Central, les distribue à Admission Controller et Collector. Seul composant qui parle à Central (TCP 443). |
 | **Admission Controller** | Deployment (3 pods HA) | Webhook Kubernetes. Inspecte create/update de workloads. Peut bloquer si violation de policy. |
-| **Collector** | DaemonSet (1 pod/nœud) | Collecte trafic réseau + événements processus via eBPF ou kernel module. Remonte à Sensor. |
+| **Collector** | DaemonSet (1 pod/nœud) | Collecte trafic réseau + événements processus. Mode défaut : **CORE_BPF**. Remonte à Sensor. |
 
 ### Optionnels
 
@@ -66,10 +66,20 @@ Outil CLI officiel RHACS. Usages principaux :
 
 ---
 
+## Modes de collection Collector
+
+| Mode | Description | Recommandé |
+|------|-------------|------------|
+| **CORE_BPF** | eBPF noyau-agnostique, pas de probe spécifique au kernel | Oui (défaut) |
+| **EBPF** | Probes liées au kernel installé — nécessite mise à jour si kernel upgradé | Non |
+| **NoCollection** | Désactivé — aucune info réseau/processus remontée | Non |
+
+---
+
 ## Résumé pour l'examen
 
 > - **Central** = 1 seule instance, sur le hub cluster
 > - **Secured Cluster** = Sensor + Admission Controller (3 pods) + Collector (DaemonSet)
 > - Sensor est le **seul** point de contact vers Central
-> - Collector utilise **eBPF** pour capturer réseau et processus
+> - Collector : mode défaut = **CORE_BPF** (recommandé par Red Hat) — pas EBPF
 > - Scanner V2 = défaut ; Scanner V4 = nouvelle génération (Claircore)

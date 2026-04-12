@@ -4,7 +4,9 @@
 
 Une **network baseline** est l'ensemble des flux réseau jugés **normaux** pour un déploiement, appris automatiquement pendant une période d'observation.
 
-Tout flux **hors baseline** = **anomalie réseau** → peut déclencher une alerte.
+Tout flux **hors baseline** = **anomalie réseau** → visible dans le graph **mais ne déclenche pas de violation automatiquement**.
+
+> **Point clé examen** : Les anomalies sont visibles (flèche rouge) mais n'alertent pas par défaut. Il faut activer explicitement **"Enable alerts on baseline violations"** par déploiement.
 
 ## Période d'apprentissage
 
@@ -38,6 +40,15 @@ Ou : Network Baselines → [déploiement] → [flux] → Mark as baseline
 UI : Network Baselines → [déploiement] → [flux] → Remove from baseline
 ```
 
+### Activer les alertes sur anomalies
+
+```
+UI : Network Graph → [clic sur un deployment] → Flows tab
+     → "Enable alerts on baseline violations" (toggle)
+```
+
+Active la génération de **violations** pour tout flux hors baseline sur ce déploiement.
+
 ### Verrouiller une baseline (Lock)
 
 ```
@@ -45,8 +56,8 @@ UI : Network Baselines → [déploiement] → Lock baseline
 ```
 
 Après verrouillage :
-- Tout nouveau flux = violation de policy réseau
 - La baseline ne s'enrichit plus automatiquement
+- Tout nouveau flux = **anomalie** (et violation si alertes activées)
 
 ## États des flux
 
@@ -73,7 +84,7 @@ curl -sk -X PATCH "$ROX_ENDPOINT/v1/networkbaselines/<deployment-id>/lock" \
 ## Résumé pour l'examen
 
 > - Baseline = flux réseau "normaux" appris automatiquement (~10 jours)
-> - Flux hors baseline = **anomalie** → visible en rouge dans le Network Graph
-> - Gérer : ajouter, supprimer, ou **verrouiller** la baseline
-> - **Lock baseline** → tout nouveau flux devient une violation de policy
+> - Flux hors baseline = **anomalie** → visible en rouge, mais **pas de violation par défaut**
+> - Activer les violations : **"Enable alerts on baseline violations"** (par déploiement)
+> - **Lock baseline** → la baseline ne s'enrichit plus ; les anomalies deviennent violations si alertes activées
 > - Période d'apprentissage configurable dans System Configuration

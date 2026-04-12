@@ -47,10 +47,37 @@ use_https = True
 # host_bucket = minio.company.com:9000/%(bucket)s
 ```
 
+### Config pour OpenShift Data Foundation / ODF (environnement examen DO430)
+
+```ini
+[default]
+access_key = <ACCESS_KEY>
+secret_key = <SECRET_KEY>
+host_base = s3-openshift-storage.apps.ocp4.example.com
+host_bucket = s3-openshift-storage.apps.ocp4.example.com/%(bucket)s
+signature_v2 = True
+```
+
+> **`signature_v2 = True`** est requis pour la compatibilité avec Noobaa/ODF.
+
+### Récupérer les infos du bucket depuis un ConfigMap (lab DO430)
+
+```bash
+# Les credentials et infos bucket peuvent être stockés dans un ConfigMap
+oc extract --to=- cm/backup-acs -n integration-backup
+# Retourne : BUCKET_NAME, BUCKET_HOST, BUCKET_PORT, BUCKET_REGION
+
+# Stocker le nom du bucket
+export BUCKET_NAME=$(oc extract --to=- cm/backup-acs -n integration-backup 2>/dev/null | grep BUCKET_NAME | cut -d= -f2)
+```
+
 ## Commandes essentielles
 
 ```bash
-# Lister tous les buckets
+# Lister tous les buckets (avec taille et date)
+s3cmd la
+
+# Lister tous les buckets (sans détails)
 s3cmd ls
 
 # Lister le contenu d'un bucket
@@ -119,6 +146,8 @@ unzip -l backup-latest.zip
 
 > - `s3cmd --configure` = configuration interactive (access key + secret + endpoint)
 > - Config stockée dans `~/.s3cfg`
-> - Commandes clés : `s3cmd ls`, `s3cmd get`, `s3cmd put`, `s3cmd sync`
-> - Pour MinIO/Ceph : configurer `host_base` avec l'URL de l'endpoint
+> - **`s3cmd la`** = list all avec taille (utilisé dans les labs DO430)
+> - Commandes clés : `s3cmd ls/la`, `s3cmd get`, `s3cmd put`, `s3cmd sync`
+> - Pour ODF/Noobaa : `signature_v2 = True` dans `.s3cfg` (requis)
+> - Infos bucket récupérables via `oc extract --to=- cm/backup-acs`
 > - Cas d'usage EX430 : consulter et télécharger les sauvegardes RHACS

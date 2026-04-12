@@ -7,10 +7,10 @@ Un **deferral** (report) permet de marquer une CVE comme intentionnellement igno
 ## Workflow
 
 ```
-Analyste → Demande de deferral → Approbateur → Approuvé/Rejeté
-                                                    ↓
-                                              CVE marquée Deferred
-                                              (invisible dans les alertes)
+Analyste → Demande de deferral → Approbateur → Approuvé / Denied
+                ↓                                     ↓
+         CVE affichée avec            CVE approuvée : retirée de l'onglet "Observed"
+         label "Pending exception"    CVE denied : reste visible, label "Pending exception" retiré
 ```
 
 ## Créer une demande de deferral
@@ -52,10 +52,10 @@ curl -sk -X POST "$ROX_ENDPOINT/v1/vulnerabilityexceptions" \
 
 | État | Description |
 |---|---|
-| `PENDING` | Demande en attente d'approbation |
-| `APPROVED` | Approuvée, CVE masquée des alertes actives |
-| `REJECTED` | Refusée |
-| `EXPIRED` | Durée écoulée, CVE redevient active |
+| `PENDING` | Demande en attente — CVE reste visible avec label "Pending exception" |
+| `APPROVED` | Approuvée — CVE retirée de l'onglet **Observed**, masquée des alertes actives |
+| `DENIED` | Refusée — CVE redevient pleinement visible (terminologie DO430 : "denied", pas "rejected") |
+| `EXPIRED` | Durée écoulée — CVE redevient active automatiquement |
 
 ## Gérer les deferrals
 

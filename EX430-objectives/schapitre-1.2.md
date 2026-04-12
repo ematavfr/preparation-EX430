@@ -81,8 +81,16 @@ oc get secret central-htpasswd -n stackrox \
 
 ## Générer un init bundle (prérequis SecuredCluster)
 
+L'init bundle contient exactement **3 secrets TLS** :
+- `collector-tls`
+- `sensor-tls`
+- `admission-control-tls`
+
+> Le bundle **ne contient pas** de certificats Scanner — Sensor les demande dynamiquement à Central.
+> Un même bundle peut être utilisé sur **plusieurs** secured clusters.
+
 ```bash
-# Via UI : Platform Configuration → Clusters → Create bundle
+# Via UI : Platform Configuration → Clusters → Manage Tokens → Cluster Init Bundle
 # Via roxctl :
 roxctl -e "https://$(oc get route central -n stackrox -o jsonpath='{.spec.host}'):443" \
   central init-bundles generate mon-cluster \
@@ -124,6 +132,7 @@ oc get pods -n stackrox
 
 > - Opérateur : namespace `rhacs-operator`, composants dans `stackrox`
 > - **Central CR** → UI + API + Scanner (hub cluster uniquement)
-> - **init bundle** → secrets TLS requis **avant** de créer le SecuredCluster
+> - **init bundle** → 3 secrets TLS (`collector-tls`, `sensor-tls`, `admission-control-tls`) requis **avant** de créer le SecuredCluster
+> - Un init bundle = utilisable sur **N** secured clusters
 > - **SecuredCluster CR** → Sensor + Collector + Admission Controller sur chaque cluster surveillé
 > - `connectivity: Online` = mise à jour automatique des feeds CVE

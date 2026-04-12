@@ -56,11 +56,21 @@ Surveille :
 # Dans la CR SecuredCluster :
 spec:
   admissionControl:
-    listenOnCreates: true    # Inspecte CREATE de workloads
-    listenOnUpdates: true    # Inspecte UPDATE de workloads
-    listenOnEvents: true     # Inspecte exec, port-forward
-    contactTimeout: 3        # secondes avant bypass (défaut : 3s)
-    bypass: BreakGlassAnnotation  # annotation pour bypass manuel
+    listenOnCreates: true    # Inspecte les CREATE de workloads
+    listenOnUpdates: true    # Inspecte les UPDATE de workloads
+    listenOnEvents: true     # Inspecte les kubectl exec et port-forward (pas les créations)
+    contactTimeout: 3        # secondes avant bypass fail-open (défaut : 3s)
+```
+
+> **Distinction clé** :
+> - `listenOnCreates` / `listenOnUpdates` → contrôle des **déploiements**
+> - `listenOnEvents` → contrôle des **exec** (`kubectl exec`) et **port-forward** à l'exécution
+
+Bypass manuel (annotation à poser sur le workload) :
+```yaml
+metadata:
+  annotations:
+    admission.stackrox.io/break-glass: "true"
 ```
 
 ### 5. Configurer Scanner V4 (optionnel)
@@ -129,5 +139,7 @@ oc rollout restart deployment/sensor -n stackrox
 > - URL Central = Route OpenShift dans `stackrox`
 > - Vérifier état clusters : **Platform Configuration → Clusters**
 > - Admission Controller : `contactTimeout: 3s` — si Central injoignable, workload est **autorisé** (fail-open par défaut)
+> - `listenOnEvents` = contrôle des `exec` et `port-forward`, **pas** des créations de pods
+> - Bypass manuel : annotation `admission.stackrox.io/break-glass: "true"` sur le workload
 > - Init bundles expirent → surveiller dans System Health
 > - Token API nécessaire pour `roxctl` en mode non-interactif
