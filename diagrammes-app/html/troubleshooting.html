@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Troubleshooting Intégrations — RHACS</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+header {
+  background: linear-gradient(135deg, #1a1f2e, #2d0a0a);
+  padding: 24px 40px;
+  border-bottom: 2px solid #cc0000;
+  display: flex; align-items: center; justify-content: space-between;
+}
+header h1 { font-size: 1.8rem; color: #ef4444; }
+header p  { color: #94a3b8; margin-top: 6px; font-size: 0.95rem; }
+.home-btn {
+  width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  background: #1a1f2e; border: 2px solid #374151;
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; font-size: 1.3rem;
+  transition: all 0.2s; cursor: pointer;
+}
+.home-btn:hover { border-color: #f97316; background: #2d1a0a; transform: scale(1.12); }
+
+nav {
+  display: flex; gap: 8px; padding: 16px 40px;
+  background: #1a1f2e; border-bottom: 1px solid #2d3748; flex-wrap: wrap;
+}
+nav button {
+  padding: 8px 18px; border-radius: 20px; border: 1px solid #cc0000;
+  background: transparent; color: #ef4444; cursor: pointer; font-size: 0.85rem;
+  transition: all 0.2s;
+}
+nav button:hover, nav button.active { background: #cc0000; color: white; }
+
+.section { display: none; padding: 32px 40px; max-width: 1200px; margin: 0 auto; }
+.section.active { display: block; }
+h2 { font-size: 1.3rem; color: #ef4444; margin-bottom: 20px; }
+h3 { font-size: 1rem; color: #7dd3fc; margin-bottom: 12px; }
+
+/* ── Tooltip ── */
+#tooltip {
+  position: fixed; background: #1e293b; border: 1px solid #cc0000;
+  border-radius: 10px; padding: 16px 20px; max-width: 400px;
+  font-size: 0.85rem; line-height: 1.6; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s; z-index: 200; color: #e2e8f0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+#tooltip h4 { color: #ef4444; margin-bottom: 8px; }
+#tooltip code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 0.78rem; color: #7dd3fc; display: block; margin: 4px 0; }
+#tooltip .tip-badge {
+  display: inline-block; background: #7f1d1d; color: #fca5a5;
+  font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px;
+}
+#tooltip .ok-badge {
+  display: inline-block; background: #14532d; color: #86efac;
+  font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px;
+}
+
+/* ══ VUE GLOBALE ══ */
+.overview-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;
+  margin-bottom: 40px;
+}
+.cat-card {
+  background: #1a1f2e; border-radius: 12px; padding: 20px;
+  border: 2px solid; cursor: pointer; transition: all 0.2s; text-align: center;
+}
+.cat-card:hover { transform: translateY(-3px); }
+.cat-icon { font-size: 2rem; margin-bottom: 10px; }
+.cat-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; }
+.cat-sub   { font-size: 0.75rem; color: #64748b; }
+
+.cat-registry { border-color: #7c3aed; }
+.cat-registry .cat-title { color: #c084fc; }
+.cat-sensor   { border-color: #c2410c; }
+.cat-sensor .cat-title   { color: #fb923c; }
+.cat-oidc     { border-color: #0284c7; }
+.cat-oidc .cat-title     { color: #38bdf8; }
+.cat-s3       { border-color: #15803d; }
+.cat-s3 .cat-title       { color: #86efac; }
+
+.diag-tip {
+  background: #1e293b; border-left: 3px solid #f59e0b;
+  padding: 14px 18px; border-radius: 0 8px 8px 0; margin-bottom: 24px;
+  font-size: 0.85rem; color: #fcd34d;
+}
+
+/* ══ ARBRE DE DÉCISION ══ */
+.tree-root {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  max-width: 900px; margin: 0 auto;
+}
+.tree-node {
+  border-radius: 10px; padding: 12px 20px; text-align: center;
+  border: 2px solid; cursor: pointer; transition: all 0.2s;
+  min-width: 260px; position: relative;
+}
+.tree-node:hover { transform: scale(1.03); }
+
+.node-start  { border-color: #ef4444; background: #450a0a33; }
+.node-start .nt { color: #fca5a5; font-weight: 700; }
+
+.node-branch { border-color: #f59e0b; background: #451a0333; }
+.node-branch .nt { color: #fcd34d; font-weight: 600; }
+
+.node-cause  { border-color: #6366f1; background: #1e1b4b33; }
+.node-cause .nt  { color: #a5b4fc; }
+
+.node-fix    { border-color: #22c55e; background: #14532d33; }
+.node-fix .nt    { color: #86efac; font-size: 0.85rem; }
+
+.nt { font-size: 0.9rem; }
+.ns { font-size: 0.72rem; color: #64748b; margin-top: 3px; }
+
+.connector {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 3px 0;
+}
+.conn-line { width: 2px; height: 22px; background: #374151; }
+.conn-tip {
+  width: 0; height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid #374151;
+}
+.conn-label {
+  font-size: 0.7rem; color: #94a3b8; background: #1a1f2e;
+  padding: 1px 8px; border-radius: 10px; margin: 2px 0;
+}
+
+.row { display: flex; gap: 32px; align-items: flex-start; width: 100%; justify-content: center; }
+.col { display: flex; flex-direction: column; align-items: center; gap: 0; flex: 1; max-width: 280px; }
+
+/* Error badges */
+.err-badge {
+  font-family: monospace; font-size: 0.72rem;
+  background: #0f172a; color: #fca5a5; border: 1px solid #dc262644;
+  padding: 3px 10px; border-radius: 6px; margin-top: 5px; display: inline-block;
+}
+
+/* ══ TABLEAUX RÉSUMÉ ══ */
+table { width: 100%; border-collapse: collapse; margin: 16px 0 28px; }
+th { background: #1a1f2e; color: #94a3b8; text-align: left; padding: 10px 14px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: .05em; }
+td { padding: 10px 14px; border-bottom: 1px solid #1e293b; font-size: 0.85rem; vertical-align: top; }
+tr:hover td { background: #1a1f2e; }
+.td-err  { color: #fca5a5; font-family: monospace; font-size: 0.78rem; }
+.td-cause { color: #94a3b8; }
+.td-fix   { color: #86efac; }
+
+/* ══ COMMANDES ══ */
+pre {
+  background: #0f172a; border: 1px solid #1e293b; border-radius: 8px;
+  padding: 14px 18px; font-size: 0.78rem; color: #7dd3fc;
+  overflow-x: auto; margin: 8px 0 20px; line-height: 1.7;
+}
+.comment { color: #475569; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Troubleshooting — Intégrations RHACS</h1>
+    <p>Objectif 6.2 — Diagnostic des problèmes courants d'intégration</p>
+  </div>
+  <a class="home-btn" href="index.html" title="Accueil">🏠</a>
+</header>
+
+<nav>
+  <button class="active" onclick="show('overview',this)">Vue globale</button>
+  <button onclick="show('registry',this)">Registry</button>
+  <button onclick="show('sensor',this)">Sensor / Collector</button>
+  <button onclick="show('oidc',this)">OIDC</button>
+  <button onclick="show('s3',this)">Object Storage S3</button>
+  <button onclick="show('tools',this)">Outils diagnostic</button>
+</nav>
+
+<div id="tooltip"></div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- VUE GLOBALE                                    -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="overview" class="section active">
+  <h2>Méthode de diagnostic — Point d'entrée</h2>
+
+  <div class="diag-tip">
+    ⚡ Commencer toujours par <strong>Platform Configuration → System Health</strong> — vue unifiée de l'état de tous les composants.
+  </div>
+
+  <div class="overview-grid">
+    <div class="cat-card cat-registry" onclick="show('registry',null)" data-tip="registry">
+      <div class="cat-icon">📦</div>
+      <div class="cat-title">Registry</div>
+      <div class="cat-sub">Auth · TLS · Timeout · Pull</div>
+    </div>
+    <div class="cat-card cat-sensor" onclick="show('sensor',null)" data-tip="sensor">
+      <div class="cat-icon">📡</div>
+      <div class="cat-title">Sensor / Collector</div>
+      <div class="cat-sub">Init bundle · Connexion · Kernel</div>
+    </div>
+    <div class="cat-card cat-oidc" onclick="show('oidc',null)" data-tip="oidc">
+      <div class="cat-icon">🔐</div>
+      <div class="cat-title">OIDC</div>
+      <div class="cat-sub">redirect_uri · client_id · claims</div>
+    </div>
+    <div class="cat-card cat-s3" onclick="show('s3',null)" data-tip="s3">
+      <div class="cat-icon">🪣</div>
+      <div class="cat-title">Object Storage S3</div>
+      <div class="cat-sub">AccessDenied · Signature · Endpoint</div>
+    </div>
+  </div>
+
+  <h2>Arbre de décision général</h2>
+
+  <div class="tree-root">
+    <div class="tree-node node-start" style="width:340px">
+      <div class="nt">Problème détecté dans RHACS</div>
+      <div class="ns">UI erreur / composant rouge dans System Health</div>
+    </div>
+    <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+
+    <div class="tree-node node-branch" style="width:420px">
+      <div class="nt">Platform Configuration → System Health</div>
+      <div class="ns">Identifier le composant en erreur</div>
+    </div>
+    <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+
+    <div class="row">
+      <div class="col">
+        <div class="tree-node node-cause" style="width:200px">
+          <div class="nt">Registry / Scanner</div>
+          <div class="err-badge">auth / tls / timeout</div>
+        </div>
+        <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+        <div class="tree-node node-fix" style="width:200px">
+          <div class="nt">→ onglet Registry</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="tree-node node-cause" style="width:200px">
+          <div class="nt">Cluster Unhealthy</div>
+          <div class="err-badge">Sensor / Collector</div>
+        </div>
+        <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+        <div class="tree-node node-fix" style="width:200px">
+          <div class="nt">→ onglet Sensor</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="tree-node node-cause" style="width:200px">
+          <div class="nt">Auth provider</div>
+          <div class="err-badge">OIDC / login</div>
+        </div>
+        <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+        <div class="tree-node node-fix" style="width:200px">
+          <div class="nt">→ onglet OIDC</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="tree-node node-cause" style="width:200px">
+          <div class="nt">Backup / restore</div>
+          <div class="err-badge">S3 / ODF</div>
+        </div>
+        <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+        <div class="tree-node node-fix" style="width:200px">
+          <div class="nt">→ onglet S3</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- REGISTRY                                       -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="registry" class="section">
+  <h2>Troubleshooting — Registry</h2>
+
+  <div class="diag-tip">
+    Tester depuis l'UI : <strong>Platform Configuration → Integrations → Image Integrations → [intégration] → Test</strong>
+  </div>
+
+  <table>
+    <tr><th>Erreur</th><th>Cause probable</th><th>Solution</th></tr>
+    <tr>
+      <td class="td-err">unauthorized: access to the requested resource is not authorized</td>
+      <td class="td-cause">Credentials incorrects · Token expiré (ECR 12h) · Robot account sans droit pull</td>
+      <td class="td-fix">Régénérer token/robot account · Vérifier permissions dans le registry · ECR : IAM role avec <code>ecr:GetAuthorizationToken</code></td>
+    </tr>
+    <tr>
+      <td class="td-err">x509: certificate signed by unknown authority</td>
+      <td class="td-cause">Registry avec cert auto-signé ou CA interne non connu de RHACS</td>
+      <td class="td-fix">Dev/test : décocher "Verify TLS" · Prod : ajouter le CA dans un Secret et le référencer dans la CR</td>
+    </tr>
+    <tr>
+      <td class="td-err">dial tcp x.x.x.x:443: i/o timeout</td>
+      <td class="td-cause">NetworkPolicy bloque Scanner → registry · Firewall · Registry interne non routable</td>
+      <td class="td-fix">Vérifier NPs dans <code>stackrox</code> · Tester : <code>oc exec -it scanner-xxx -- curl -v https://registry-url</code></td>
+    </tr>
+  </table>
+
+  <h3>Diagnostic réseau depuis le pod Scanner</h3>
+  <pre><span class="comment"># Tester la joignabilité du registry depuis le scanner</span>
+oc exec -it deployment/scanner -n stackrox -- \
+  curl -v https://&lt;registry-host&gt;/v2/
+
+<span class="comment"># Vérifier les NetworkPolicies dans le namespace stackrox</span>
+oc get networkpolicies -n stackrox
+
+<span class="comment"># Logs scanner pour voir l'erreur exacte</span>
+oc logs -l app=scanner -n stackrox --tail=50</pre>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SENSOR / COLLECTOR                             -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="sensor" class="section">
+  <h2>Troubleshooting — Sensor / Collector</h2>
+
+  <div class="diag-tip">
+    Symptôme principal : cluster affiché <strong>Unhealthy</strong> (rouge) dans <strong>Platform Configuration → Clusters</strong>
+  </div>
+
+  <h3>Arbre de décision — Sensor unhealthy</h3>
+
+  <div class="tree-root" style="margin-bottom:36px">
+    <div class="tree-node node-start">
+      <div class="nt">Cluster Unhealthy dans l'UI</div>
+    </div>
+    <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+    <div class="tree-node node-branch">
+      <div class="nt">Vérifier les logs Sensor</div>
+      <div class="ns">oc logs -l app=sensor -n stackrox</div>
+    </div>
+    <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+
+    <div class="row">
+      <div class="col">
+        <div class="tree-node node-cause">
+          <div class="nt">certificate has expired</div>
+          <div class="ns">Init bundle expiré</div>
+        </div>
+        <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+        <div class="tree-node node-fix">
+          <div class="nt">Générer nouveau bundle + apply + restart sensor</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="tree-node node-cause">
+          <div class="nt">connection refused / DNS failure</div>
+          <div class="ns">Central inaccessible</div>
+        </div>
+        <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+        <div class="tree-node node-fix">
+          <div class="nt">Vérifier centralEndpoint dans CR + DNS + route</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="tree-node node-cause">
+          <div class="nt">secret not found</div>
+          <div class="ns">Secret init bundle supprimé</div>
+        </div>
+        <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+        <div class="tree-node node-fix">
+          <div class="nt">Re-appliquer le fichier YAML d'init bundle</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Composant</th><th>Problème</th><th>Cause</th><th>Solution</th></tr>
+    <tr>
+      <td>Sensor</td>
+      <td class="td-err">Unhealthy / pas de connexion</td>
+      <td class="td-cause">Init bundle expiré · réseau · secret corrompu</td>
+      <td class="td-fix">Nouveau init bundle + <code>oc rollout restart deployment/sensor</code></td>
+    </tr>
+    <tr>
+      <td>Collector</td>
+      <td class="td-err">Pod(s) en CrashLoopBackOff ou absent de certains nœuds</td>
+      <td class="td-cause">Node tainté sans toleration · Kernel incompatible avec EBPF</td>
+      <td class="td-fix">Ajouter <code>taintToleration: TolerateTaints</code> dans CR SecuredCluster · Passer en <code>CORE_BPF</code></td>
+    </tr>
+    <tr>
+      <td>Admission Controller</td>
+      <td class="td-err">Workloads bloqués sans violation</td>
+      <td class="td-cause">Timeout dépassé (fail-open) — Central lent ou injoignable</td>
+      <td class="td-fix">Vérifier Central (resources/logs) · <code>contactTimeout</code> ajustable dans CR SecuredCluster</td>
+    </tr>
+  </table>
+
+  <pre><span class="comment"># Renouveler l'init bundle</span>
+roxctl central init-bundles generate post-repair-bundle \
+  --output-secrets new-bundle.yaml -e $ROX_ENDPOINT
+oc apply -f new-bundle.yaml -n stackrox
+oc rollout restart deployment/sensor -n stackrox
+
+<span class="comment"># Tester connectivité Sensor → Central</span>
+oc exec -it deployment/sensor -n stackrox -- \
+  wget -qO- https://central.stackrox.svc:443/v1/ping
+
+<span class="comment"># Voir les tolerations du DaemonSet Collector</span>
+oc get ds collector -n stackrox -o yaml | grep -A 10 tolerations</pre>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- OIDC                                           -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="oidc" class="section">
+  <h2>Troubleshooting — OIDC</h2>
+
+  <div class="diag-tip">
+    Config : <strong>Platform Configuration → Access Control → Auth Providers</strong>
+  </div>
+
+  <table>
+    <tr><th>Erreur</th><th>Cause</th><th>Solution</th></tr>
+    <tr>
+      <td class="td-err">redirect_uri_mismatch</td>
+      <td class="td-cause">URL de callback non déclarée dans le provider OIDC</td>
+      <td class="td-fix">Ajouter dans le provider : <code>https://&lt;central-host&gt;/sso/providers/oidc/callback</code></td>
+    </tr>
+    <tr>
+      <td class="td-err">invalid_client</td>
+      <td class="td-cause">client_id ou client_secret incorrect · client désactivé</td>
+      <td class="td-fix">Vérifier/régénérer les credentials dans le provider OIDC · Réactiver le client</td>
+    </tr>
+    <tr>
+      <td class="td-err">Login OK mais droits insuffisants (None)</td>
+      <td class="td-cause">Claims du token ne correspondent pas aux mapping rules RHACS</td>
+      <td class="td-fix">Décoder le JWT → comparer les claims → ajuster les rules dans Access Control</td>
+    </tr>
+    <tr>
+      <td class="td-err">ERR_TOO_MANY_REDIRECTS</td>
+      <td class="td-cause">Mode callback incorrect (fragment vs query)</td>
+      <td class="td-fix">Dans l'auth provider RHACS, vérifier le "Callback Mode" (HTTP POST ou Fragment)</td>
+    </tr>
+  </table>
+
+  <h3>Arbre de décision OIDC</h3>
+
+  <div class="tree-root">
+    <div class="tree-node node-start">
+      <div class="nt">Problème de connexion OIDC</div>
+    </div>
+    <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+
+    <div class="row">
+      <div class="col">
+        <div class="tree-node node-cause">
+          <div class="nt">Erreur lors du login</div>
+          <div class="err-badge">redirect_uri / invalid_client</div>
+        </div>
+        <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+        <div class="tree-node node-fix">
+          <div class="nt">Vérifier config du client OIDC dans le provider</div>
+          <div class="ns">URL callback + client_id/secret</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="tree-node node-cause">
+          <div class="nt">Login OK, rôle incorrect</div>
+          <div class="err-badge">None / droits insuffisants</div>
+        </div>
+        <div class="connector"><div class="conn-line"></div><div class="conn-tip"></div></div>
+        <div class="tree-node node-fix">
+          <div class="nt">Décoder JWT → aligner claims → mapping rules</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Décoder un JWT pour diagnostiquer les claims</h3>
+  <pre><span class="comment"># Récupérer le token OIDC depuis les logs Central (mode debug)</span>
+oc logs -l app=central -n stackrox | grep -i "jwt\|claim\|token"
+
+<span class="comment"># Décoder manuellement (jwt.io ou en CLI)</span>
+echo "&lt;token_base64&gt;" | cut -d. -f2 | base64 -d | jq .
+
+<span class="comment"># URL callback attendue par RHACS</span>
+<span class="comment"># https://&lt;central-route&gt;/sso/providers/oidc/callback</span>
+CENTRAL_HOST=$(oc get route central -n stackrox -o jsonpath='{.spec.host}')
+echo "Callback URL : https://$CENTRAL_HOST/sso/providers/oidc/callback"</pre>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- OBJECT STORAGE S3                              -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="s3" class="section">
+  <h2>Troubleshooting — Object Storage S3 / ODF</h2>
+
+  <div class="diag-tip">
+    Config : <strong>Platform Configuration → Integrations → Backup Integrations</strong>
+  </div>
+
+  <table>
+    <tr><th>Erreur</th><th>Cause</th><th>Solution</th></tr>
+    <tr>
+      <td class="td-err">connection refused / i/o timeout</td>
+      <td class="td-cause">Endpoint S3 incorrect · NetworkPolicy · TLS ODF auto-signé</td>
+      <td class="td-fix">Vérifier l'URL endpoint · Tester curl depuis le pod central · Cocher "Disable TLS" pour ODF ou fournir le CA</td>
+    </tr>
+    <tr>
+      <td class="td-err">AccessDenied</td>
+      <td class="td-cause">Credentials incorrects · Bucket inexistant · Droits IAM insuffisants</td>
+      <td class="td-fix">Vérifier Access Key/Secret Key · Créer le bucket · IAM : <code>s3:PutObject</code>, <code>s3:GetObject</code>, <code>s3:ListBucket</code></td>
+    </tr>
+    <tr>
+      <td class="td-err">SignatureDoesNotMatch</td>
+      <td class="td-cause">ODF/Noobaa requiert Signature V2, RHACS/s3cmd envoie V4 par défaut</td>
+      <td class="td-fix">s3cmd : <code>signature_v2 = True</code> dans <code>~/.s3cfg</code> · RHACS : sélectionner endpoint "S3-compatible" non AWS</td>
+    </tr>
+    <tr>
+      <td class="td-err">NoSuchBucket</td>
+      <td class="td-cause">Nom de bucket incorrect ou bucket non créé</td>
+      <td class="td-fix">Vérifier le nom exact : <code>s3cmd ls</code> · Créer le bucket si absent</td>
+    </tr>
+  </table>
+
+  <h3>Récupérer les infos bucket depuis OpenShift</h3>
+  <pre><span class="comment"># Lire le ConfigMap créé par ODF/Noobaa</span>
+oc extract --to=- cm/backup-acs -n integration-backup
+<span class="comment"># Retourne : BUCKET_NAME, BUCKET_HOST, BUCKET_PORT, BUCKET_REGION</span>
+
+<span class="comment"># Récupérer le Secret avec les credentials</span>
+oc extract --to=- secret/backup-acs -n integration-backup
+
+<span class="comment"># Tester la connexion S3 depuis le pod Central</span>
+oc exec -it deployment/central -n stackrox -- \
+  curl -v https://&lt;s3-endpoint&gt;/
+
+<span class="comment"># Lister les buckets avec s3cmd (debug)</span>
+s3cmd --config ~/.s3cfg ls --debug 2>&amp;1 | grep -E "ERROR|bucket|endpoint"</pre>
+
+  <h3>Configuration s3cmd pour ODF/Noobaa</h3>
+  <pre><span class="comment"># ~/.s3cfg — valeurs clés pour ODF</span>
+[default]
+access_key = &lt;ACCESS_KEY&gt;
+secret_key = &lt;SECRET_KEY&gt;
+host_base = s3-openshift-storage.apps.ocp4.example.com
+host_bucket = s3-openshift-storage.apps.ocp4.example.com/%(bucket)s
+signature_v2 = True    <span class="comment"># OBLIGATOIRE pour ODF/Noobaa</span>
+use_https = True</pre>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- OUTILS DIAGNOSTIC                              -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="tools" class="section">
+  <h2>Outils de diagnostic — Référence rapide</h2>
+
+  <table>
+    <tr><th>Commande</th><th>Usage</th></tr>
+    <tr>
+      <td><code>roxctl central debug dump -e $ROX_ENDPOINT</code></td>
+      <td class="td-cause">Collecte tous les diagnostics (logs, config, state) dans un ZIP — premier réflexe Red Hat Support</td>
+    </tr>
+    <tr>
+      <td><code>oc logs -l app=central -n stackrox --tail=100</code></td>
+      <td class="td-cause">Logs Central (API, policy engine)</td>
+    </tr>
+    <tr>
+      <td><code>oc logs -l app=sensor -n stackrox --tail=100</code></td>
+      <td class="td-cause">Logs Sensor (connexion Central, policies)</td>
+    </tr>
+    <tr>
+      <td><code>oc logs -l app=collector -n stackrox</code></td>
+      <td class="td-cause">Logs Collector (eBPF, événements réseau/processus)</td>
+    </tr>
+    <tr>
+      <td><code>oc logs -l app=scanner -n stackrox</code></td>
+      <td class="td-cause">Logs Scanner (CVE, connexion registry)</td>
+    </tr>
+    <tr>
+      <td><code>oc get securedcluster -n stackrox -o yaml | grep -A 20 status</code></td>
+      <td class="td-cause">État détaillé du SecuredCluster (conditions, erreurs)</td>
+    </tr>
+    <tr>
+      <td><code>oc exec -it deployment/sensor -n stackrox -- wget -qO- https://central.stackrox.svc:443/v1/ping</code></td>
+      <td class="td-cause">Test connectivité Sensor → Central</td>
+    </tr>
+    <tr>
+      <td><code>curl -sk $ROX_ENDPOINT/v1/ping -H "Authorization: Bearer $TOKEN"</code></td>
+      <td class="td-cause">Test API Central (vérifier que Central répond)</td>
+    </tr>
+  </table>
+
+  <h3>Priorité de diagnostic</h3>
+  <div style="display:flex;flex-direction:column;gap:10px;max-width:600px">
+    <div style="background:#1a1f2e;border-left:3px solid #ef4444;padding:12px 16px;border-radius:0 8px 8px 0">
+      <strong style="color:#fca5a5">1.</strong> Platform Configuration → System Health (vue globale)
+    </div>
+    <div style="background:#1a1f2e;border-left:3px solid #f59e0b;padding:12px 16px;border-radius:0 8px 8px 0">
+      <strong style="color:#fcd34d">2.</strong> Logs du composant incriminé (<code>oc logs</code>)
+    </div>
+    <div style="background:#1a1f2e;border-left:3px solid #6366f1;padding:12px 16px;border-radius:0 8px 8px 0">
+      <strong style="color:#a5b4fc">3.</strong> Test depuis l'UI (bouton Test des intégrations)
+    </div>
+    <div style="background:#1a1f2e;border-left:3px solid #22c55e;padding:12px 16px;border-radius:0 8px 8px 0">
+      <strong style="color:#86efac">4.</strong> Vérifier credentials + réseau + certificats
+    </div>
+    <div style="background:#1a1f2e;border-left:3px solid #0ea5e9;padding:12px 16px;border-radius:0 8px 8px 0">
+      <strong style="color:#7dd3fc">5.</strong> <code>roxctl central debug dump</code> si escalade nécessaire
+    </div>
+  </div>
+</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (btn) {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  } else {
+    // activated from card click — update nav
+    const labels = {registry:'Registry',sensor:'Sensor / Collector',oidc:'OIDC',s3:'Object Storage S3'};
+    document.querySelectorAll('nav button').forEach(b => {
+      b.classList.toggle('active', b.textContent.trim() === (labels[id] || ''));
+    });
+  }
+}
+
+// Tooltip
+const tip = document.getElementById('tooltip');
+document.addEventListener('mousemove', e => {
+  tip.style.left = (e.clientX + 18) + 'px';
+  tip.style.top  = (e.clientY - 10) + 'px';
+});
+document.querySelectorAll('[data-tip]').forEach(el => {
+  const tips = {
+    registry: '<h4>Registry</h4><div class="tip-badge">Objectif 6.1 / 6.2</div><p>Problèmes d\'auth, TLS et réseau entre le Scanner RHACS et les registries privés.</p>',
+    sensor:   '<h4>Sensor / Collector</h4><div class="tip-badge">Objectif 1.2 / 6.2</div><p>Le cluster apparaît Unhealthy. Causes principales : init bundle expiré, réseau, tolerations manquantes.</p>',
+    oidc:     '<h4>OIDC</h4><div class="tip-badge">Objectif 6.3 / 6.2</div><p>Problèmes de login SSO. La redirect_uri et les claims JWT sont les causes les plus fréquentes.</p>',
+    s3:       '<h4>Object Storage S3</h4><div class="tip-badge">Objectif 6.4 / 6.2</div><p>Backup RHACS vers S3/ODF. Attention : signature_v2=True obligatoire pour Noobaa/ODF.</p>',
+  };
+  el.addEventListener('mouseenter', () => { tip.innerHTML = tips[el.dataset.tip] || ''; tip.style.opacity = 1; });
+  el.addEventListener('mouseleave', () => { tip.style.opacity = 0; });
+});
+</script>
+</body>
+</html>

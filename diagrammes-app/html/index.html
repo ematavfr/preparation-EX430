@@ -68,7 +68,14 @@ h1 {
 <div class="grid" id="cards"></div>
 <script>
 const diagrams = [
-  /* Les entrées seront ajoutées au fil de la préparation */
+  { file: 'architecture-rhacs.html', tag: 'Section 1', title: 'Architecture RHACS', desc: 'Hub-and-spoke, composants Central / Sensor / Collector / Admission Controller' },
+  { file: 'admission-controller.html', tag: 'Section 1 · 3', title: 'Admission Controller', desc: 'Flux de décision, fail-open, listenOnCreates / listenOnEvents, bypass break-glass' },
+  { file: 'policy-lifecycle.html', tag: 'Section 3', title: 'Cycle de vie des Policies', desc: 'Build-time / Deploy-time / Runtime, violations, enforcement' },
+  { file: 'network-graph.html', tag: 'Section 4', title: 'Network Graph & Baselines', desc: 'Observation, baseline lock, alertes sur anomalies, génération NetworkPolicies' },
+  { file: 'compliance-stack.html', tag: 'Section 5', title: 'Compliance Stack', desc: 'Compliance Operator, standards CIS/NIST, Control vs Check, rapports' },
+  { file: 'backup-restore.html', tag: 'Section 6', title: 'Backup / Restore', desc: 'Types de backup, roxctl central backup/restore, S3, post-restore Sensor' },
+  { file: 'troubleshooting.html', tag: 'Section 6.2', title: 'Troubleshooting Intégrations', desc: 'Registry, Sensor/Collector, OIDC, Object Storage S3 — arbres de décision et commandes' },
+  { file: 'custom-tls.html', tag: 'Section 1.3', title: 'Certificats TLS Custom', desc: 'Configurer un cert TLS personnalisé pour Central — workflow, CR, impact Sensors' },
 ];
 const grid = document.getElementById('cards');
 diagrams.forEach(d => {
@@ -79,9 +86,6 @@ diagrams.forEach(d => {
       <p>${d.desc}</p>
     </a>`;
 });
-if (!diagrams.length) {
-  grid.innerHTML = '<p style="color:#64748b;grid-column:1/-1;text-align:center">Diagrammes à venir au fil de la préparation.</p>';
-}
 </script>
 </body>
 </html>
