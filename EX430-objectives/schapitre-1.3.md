@@ -120,6 +120,55 @@ oc logs -l app=collector -n stackrox -f --prefix
 oc get securedcluster -n stackrox -o yaml | grep -A 20 status
 ```
 
+## Certificats TLS custom pour Central
+
+Par défaut, Central génère un certificat auto-signé. Pour utiliser votre propre certificat (CA d'entreprise ou Let's Encrypt) :
+
+### 1. Créer le Secret TLS
+
+```bash
+oc create secret tls central-tls-custom \
+  --cert=server.crt \
+  --key=server.key \
+  -n stackrox
+```
+
+> Le Secret doit contenir `tls.crt` (chaîne complète : cert + CA intermédiaires) et `tls.key`.
+
+### 2. Référencer le Secret dans la CR Central
+
+```yaml
+apiVersion: platform.stackrox.io/v1alpha1
+kind: Central
+metadata:
+  name: stackrox-central-services
+  namespace: stackrox
+spec:
+  central:
+    defaultTLSSecret:
+      name: central-tls-custom   # Nom du Secret kubernetes.io/tls
+```
+
+```bash
+oc apply -f central.yaml
+# Central redémarre automatiquement pour prendre en compte le certificat
+oc rollout status deployment/central -n stackrox
+```
+
+### 3. Vérifier le certificat actif
+
+```bash
+# Vérifier le cert présenté par Central
+echo | openssl s_client -connect \
+  $(oc get route central -n stackrox -o jsonpath='{.spec.host}'):443 \
+  -servername $(oc get route central -n stackrox -o jsonpath='{.spec.host}') \
+  2>/dev/null | openssl x509 -noout -subject -dates
+```
+
+> **Point clé** : si le certificat change, les Sensors existants peuvent perdre confiance. Vérifier leur statut dans **Platform Configuration → Clusters** après le changement.
+
+---
+
 ## Renouvellement des certificats (init bundle)
 
 Les init bundles expirent (défaut : 1 an). Renouvellement :
@@ -143,3 +192,5 @@ oc rollout restart deployment/sensor -n stackrox
 > - Bypass manuel : annotation `admission.stackrox.io/break-glass: "true"` sur le workload
 > - Init bundles expirent → surveiller dans System Health
 > - Token API nécessaire pour `roxctl` en mode non-interactif
+> - **Certificat TLS custom** : Secret `kubernetes.io/tls` → référencer dans CR Central via `spec.central.defaultTLSSecret.name`
+> - Après changement de cert : vérifier l'état des Sensors (peuvent perdre confiance)

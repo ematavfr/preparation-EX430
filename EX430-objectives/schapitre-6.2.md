@@ -99,6 +99,99 @@ oc get pods -n stackrox | grep scanner
 oc logs -l app=scanner -n stackrox
 ```
 
+## Problèmes courants — OIDC
+
+### redirect_uri mismatch
+
+```
+Error: redirect_uri_mismatch — the redirect URI in the request did not match
+
+Cause : L'URL de callback déclarée dans le provider OIDC ne correspond pas
+        à l'URL réelle de Central.
+
+Solution :
+- Dans le provider OIDC (Keycloak, Okta...) : ajouter exactement cette URL :
+  https://<central-host>/sso/providers/oidc/callback
+- Vérifier que <central-host> correspond à la Route OpenShift sans slash final
+```
+
+### client_id ou client_secret invalide
+
+```
+Error: invalid_client — client authentication failed
+
+Solutions :
+- Vérifier les credentials dans RHACS UI :
+  Platform Configuration → Integrations → Authentication Providers → [provider] → Edit
+- Régénérer le client secret dans le provider OIDC
+- S'assurer que le client OIDC est actif (non désactivé dans Keycloak/Okta)
+```
+
+### Claims de rôle non mappés
+
+```
+Symptôme : l'utilisateur se connecte mais a des droits insuffisants (ou None)
+
+Cause : les claim mappings RHACS ne correspondent pas aux claims retournés par le token.
+
+Diagnostic :
+- Décoder le token JWT reçu : https://jwt.io
+- Comparer les claims avec les règles de mapping dans RHACS
+
+Solution :
+- Platform Configuration → Access Control → [Auth Provider] → Rules
+- Ajuster les règles de mapping (ex: groups claim → role RHACS)
+```
+
+## Problèmes courants — Object Storage (S3/ODF)
+
+### Connexion refusée ou timeout
+
+```
+Error: dial tcp x.x.x.x:443: connection refused
+
+Causes :
+- Endpoint S3 incorrect (URL, port)
+- NetworkPolicy bloque Central vers l'endpoint S3
+- Certificat TLS non reconnu (ODF avec cert auto-signé)
+
+Solutions :
+- Vérifier l'URL dans Platform Configuration → Integrations → Backup Integrations
+- Tester depuis Central : oc exec -it deployment/central -n stackrox \
+    -- curl -v https://<s3-endpoint>/
+- Pour ODF/Noobaa : cocher "Disable TLS" ou fournir le CA ODF
+```
+
+### Accès refusé au bucket
+
+```
+Error: AccessDenied — Access Denied
+
+Causes :
+- Access Key / Secret Key incorrects
+- Le bucket n'existe pas encore
+- Politique IAM/bucket trop restrictive
+
+Solutions :
+- Vérifier les credentials : oc extract --to=- cm/backup-acs -n integration-backup
+- Créer le bucket s'il n'existe pas
+- S'assurer que l'utilisateur S3 a les droits : s3:PutObject, s3:GetObject, s3:ListBucket
+```
+
+### Incompatibilité signature (ODF/Noobaa)
+
+```
+Error: SignatureDoesNotMatch
+
+Cause : ODF/Noobaa requiert Signature V2 — RHACS envoie par défaut V4.
+
+Solution (s3cmd) :
+  signature_v2 = True  # dans ~/.s3cfg
+
+Solution (intégration RHACS) :
+  Vérifier que l'endpoint est configuré comme "S3-compatible" (pas AWS natif)
+```
+
 ## Outils de diagnostic
 
 ```bash
@@ -138,3 +231,7 @@ Affiche :
 > - TLS error → décocher "Verify TLS" ou ajouter le CA
 > - `roxctl central debug dump` pour collecter tous les diagnostics en un fichier
 > - Collector ne démarre pas → vérifier tolerations + passer en EBPF
+> - **OIDC redirect_uri** : URL exacte = `https://<central-host>/sso/providers/oidc/callback`
+> - **OIDC claims vides** : décoder le JWT et aligner les mapping rules dans Access Control
+> - **S3 AccessDenied** : vérifier credentials + droits (PutObject, GetObject, ListBucket)
+> - **S3 SignatureDoesNotMatch** sur ODF/Noobaa → `signature_v2 = True` (s3cmd) ou endpoint S3-compatible (RHACS)
