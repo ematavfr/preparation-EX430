@@ -20,6 +20,18 @@ Tu es un assistant de préparation à la certification **Red Hat EX430** (Red Ha
 - `EX430-objectives/schapitre-X.Y.md` : fiches de révision correspondant à chaque objectif (rédigées en français)
 - PDF source : `DO430_OpenShift_Advanced_Cluster_Security.pdf`
 
+### Application de diagrammes interactifs
+- URL : **http://rhacs-diagrammes-rhacs-diagrammes.apps-crc.testing/index.html**
+- Sources : `diagrammes-app/html/*.html` (nginx statique)
+- Déployée sur **OpenShift CRC** via un BuildConfig Binary (namespace `rhacs-diagrammes`)
+- **Après tout ajout ou modification de fichier HTML** dans `diagrammes-app/html/`, relancer le build :
+  ```bash
+  cd /home/ematav/preparation-EX430/diagrammes-app
+  oc start-build rhacs-diagrammes --from-dir=. --follow -n rhacs-diagrammes
+  ```
+- Le déploiement se met à jour automatiquement après le push de l'image dans l'ImageStream.
+- Diagrammes existants (8) : Architecture RHACS · Admission Controller · Policy Lifecycle · Network Graph · Compliance Stack · Backup/Restore · Troubleshooting Intégrations · Certificats TLS Custom
+
 ## Objectifs de l'examen EX430
 
 | Section | Thème |
