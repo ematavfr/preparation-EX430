@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """
-Ingestion du guide DO430 dans Pinecone (index rhacs-knowledge-base).
+Ingestion de PDFs RHACS dans Pinecone (index rhacs-knowledge-base).
 - Modèle d'embedding intégré Pinecone : llama-text-embed-v2 (1024 dims)
 - Chunking par page (~800 chars max par chunk)
 - Métadonnées : text, page, source
+- Usage : python3 ingest.py [fichier1.pdf fichier2.pdf ...]
+  Sans argument : ingère le DO430 par défaut.
 """
 
-import os, re, time, uuid
+import os, re, time, uuid, sys
 import pdfplumber
 from pinecone import Pinecone
 
 PINECONE_KEY = os.environ.get("PINECONE_API_KEY") or open(os.path.expanduser("~/preparation-EX430/pinecone")).read().strip()
 INDEX_NAME   = "rhacs-knowledge-base"
-PDF_PATH     = "/home/ematav/preparation-EX430/DO430_Securing_Kubernetes_Clusters_with_Red_Hat_Advanced_Cluster_Security_en_4.6.pdf"
+DEFAULT_PDF  = "/home/ematav/preparation-EX430/DO430_Securing_Kubernetes_Clusters_with_Red_Hat_Advanced_Cluster_Security_en_4.6.pdf"
 CHUNK_SIZE   = 800
 CHUNK_OVERLAP= 100
 BATCH_SIZE   = 90   # max records par upsert (integrated inference)
@@ -55,11 +57,12 @@ def sanitize(text):
                .encode('ascii', errors='ignore').decode('ascii')
 
 
-def extract_chunks():
+def extract_chunks(pdf_path):
     """Extrait et découpe le texte du PDF par page."""
     chunks = []
-    print(f"Lecture du PDF...")
-    with pdfplumber.open(PDF_PATH) as pdf:
+    source_name = os.path.splitext(os.path.basename(pdf_path))[0]
+    print(f"Lecture du PDF : {source_name}")
+    with pdfplumber.open(pdf_path) as pdf:
         total = len(pdf.pages)
         print(f"  {total} pages détectées.")
         for i, page in enumerate(pdf.pages):
@@ -71,7 +74,7 @@ def extract_chunks():
                 chunks.append({
                     "text": chunk,
                     "page": i + 1,
-                    "source": f"DO430-p{i+1}",
+                    "source": f"{source_name}-p{i+1}",
                 })
             if (i + 1) % 50 == 0:
                 print(f"  Page {i+1}/{total} traitée...")
@@ -101,10 +104,23 @@ def upsert_chunks(chunks):
 
 
 def main():
+    pdf_files = sys.argv[1:] if len(sys.argv) > 1 else [DEFAULT_PDF]
+
     create_index()
-    chunks = extract_chunks()
-    print(f"Ingestion de {len(chunks)} chunks dans Pinecone...")
-    upsert_chunks(chunks)
+
+    all_chunks = []
+    for pdf_path in pdf_files:
+        if not os.path.isfile(pdf_path):
+            print(f"[ERREUR] Fichier introuvable : {pdf_path}")
+            continue
+        all_chunks.extend(extract_chunks(pdf_path))
+
+    if not all_chunks:
+        print("Aucun chunk extrait — abandon.")
+        return
+
+    print(f"\nIngestion de {len(all_chunks)} chunks dans Pinecone...")
+    upsert_chunks(all_chunks)
 
     # Vérification
     time.sleep(3)
