@@ -17,6 +17,19 @@ RHACS affiche les résultats de conformité en les corrélant avec :
 
 > Les scores RHACS sont calculés au niveau des **controls**. Les résultats détaillés sont au niveau des **checks**.
 
+## Statuts possibles d'un check (Operating guide 4.6)
+
+| Statut | Signification |
+|---|---|
+| **Pass** | Le check a réussi |
+| **Fail** | Le check a échoué |
+| **Not Applicable** | Check ignoré — non applicable à cet environnement |
+| **Info** | Données collectées, mais RHACS ne peut pas déterminer Pass ou Fail |
+| **Error** | Échec technique du check (problème d'exécution, pas de conformité) |
+| **Manual** | Intervention manuelle requise pour évaluer ce contrôle |
+
+> **Point clé examen** : Ne pas confondre **Error** (problème technique d'exécution du check) et **Fail** (check exécuté correctement mais non conforme). **Manual** = contrôle non automatisable.
+
 ## Standards supportés
 
 | Standard | Description |

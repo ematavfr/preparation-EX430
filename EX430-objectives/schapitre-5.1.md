@@ -100,6 +100,14 @@ spec:
 oc apply -f scansettingbinding.yaml
 ```
 
+## Alternative : planifier les scans depuis RHACS UI
+
+> **Point clé examen** : Si vous créez un **scan schedule depuis l'UI RHACS** (Compliance → Reporting → Create Schedule), vous n'avez **pas besoin** de créer le `ScanSettingBinding` sur le Compliance Operator — RHACS le gère automatiquement.
+
+Les deux approches sont valides :
+- **Compliance Operator direct** : ScanSetting + ScanSettingBinding (contrôle granulaire)
+- **RHACS UI schedule** : simplifié, sans ScanSettingBinding manuel
+
 ## Déclencher un scan manuel
 
 ```bash

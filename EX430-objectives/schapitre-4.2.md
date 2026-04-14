@@ -14,10 +14,19 @@ Tout flux **hors baseline** = **anomalie réseau** → visible dans le graph **m
 - Pendant cette période : tous les flux observés sont intégrés à la baseline
 - Après la période : nouveaux flux = anomalies
 
+### Configurer la période via variables d'environnement (Central)
+
 ```bash
-# UI : Platform Configuration → System Configuration
-# → Network baseline observation period
+# Modifier la période d'observation des baselines
+oc -n stackrox set env deploy/central \
+  ROX_NETWORK_BASELINE_OBSERVATION_PERIOD=10d
+
+# Modifier la durée de génération de baseline
+oc -n stackrox set env deploy/central \
+  ROX_BASELINE_GENERATION_DURATION=1h
 ```
+
+> Ces deux variables sont positionnées sur le **Deployment Central** — pas dans la CR. Le changement prend effet après redémarrage de Central.
 
 ## Accéder aux baselines
 

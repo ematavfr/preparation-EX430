@@ -108,6 +108,25 @@ export ROX_API_TOKEN="eyJ..."
 roxctl -e $ROX_ENDPOINT central whoami
 ```
 
+## Machine Access Tokens (court-terme, OIDC natif)
+
+Pour les pipelines CI/CD modernes, RHACS supporte les **machine access tokens** — des tokens OIDC court-terme émis par des cloud providers :
+
+```
+Platform Configuration → Integrations → Authentication Tokens → Machine access configuration
+→ Create configuration
+```
+
+Types supportés :
+| Type | Issuer |
+|---|---|
+| **Generic** | Tout issuer OIDC arbitraire |
+| **GitHub Actions** | `token.actions.githubusercontent.com` |
+| **Google Cloud** | Google Cloud Identity Platform |
+| **Azure** | Microsoft Entra ID |
+
+> Avantage : pas de credentials statiques — le token est éphémère et émis par le cloud provider. Recommandé sur AWS/GCP/Azure pour les pipelines CI/CD. Plus sécurisé que les API tokens à longue durée de vie.
+
 ---
 
 ## Résumé pour l'examen

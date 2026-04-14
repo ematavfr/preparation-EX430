@@ -16,6 +16,17 @@ Elles évaluent **à la fois** :
 
 La détection est assurée par **Collector** (DaemonSet CORE_BPF) remontant les événements à Sensor.
 
+## Event sources Runtime (DO430 / Operating guide)
+
+Les policies Runtime peuvent se déclencher sur **deux sources d'événements** distinctes :
+
+| Event source | Ce qu'il surveille | Exemples |
+|---|---|---|
+| **Deployment** | Activité dans les conteneurs en cours d'exécution | Exécution de processus, connexions réseau, `kubectl exec`, port-forward |
+| **Audit logs** | Enregistrements du journal d'audit Kubernetes | Appels API suspects, accès à des ressources sensibles |
+
+> **Point clé examen** : le champ `event source` ne s'affiche que pour les policies de lifecycle **Runtime**. Une policy Deployment ou Build n'a pas ce champ.
+
 ## Types d'événements Runtime
 
 | Type | Exemple de détection |
@@ -111,3 +122,4 @@ curl -sk -H "Authorization: Bearer $TOKEN" \
 > - Policy Runtime + Enforce = pod supprimé dès la détection
 > - Pods recréés par leur Deployment → normal, si le trigger persiste c'est un indicateur
 > - Process baselines : RHACS apprend les processus légitimes pour réduire les faux positifs
+> - **Event sources** Runtime : `Deployment` (process/réseau/exec) ou `Audit logs` (journal K8s API)

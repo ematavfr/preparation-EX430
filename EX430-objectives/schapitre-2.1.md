@@ -56,6 +56,9 @@ CVE affectant Kubernetes / OpenShift lui-même :
 | Activation | Défaut | Optionnel (CR Central) |
 | Architecture | Monolithique | Indexer + Matcher séparés |
 | Performance | Standard | Meilleure à grande échelle |
+| CVE nodes RHCOS | ~50 CVEs | ~390 CVEs |
+
+> **Point clé** : Scanner V4 remonte **beaucoup plus de CVEs** sur les nœuds RHCOS (~390 vs ~50) grâce aux données **VEX** (Vulnerability Exploitability eXchange) plus précises et à une meilleure couverture Claircore. Ne pas s'alarmer de l'augmentation — c'est un gain de couverture, pas une régression.
 
 ## Configurer le re-scan périodique
 

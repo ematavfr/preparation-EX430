@@ -62,6 +62,16 @@ curl -sk -X POST "$ROX_ENDPOINT/v1/imageintegrations" \
 
 ## Cas spéciaux
 
+### Quay — 3 méthodes d'intégration
+
+| Méthode | Authentification | Quand l'utiliser |
+|---|---|---|
+| **Public** | Aucune | Registry public Quay.io |
+| **Robot account** | Token robot account | **Recommandé** — registry privé Quay |
+| **OAuth token** | OAuth API token | Utiliser le **scanner Quay** à la place du scanner RHACS |
+
+> Le robot account est la méthode **recommandée** pour les registries privés Quay. L'OAuth token n'est nécessaire que si on veut déléguer le scan à Quay lui-même.
+
 ### ECR (AWS)
 
 ```json

@@ -79,6 +79,22 @@ Même workflow, mais le motif est `False positive` :
 - La CVE est marquée comme ne s'appliquant pas réellement
 - Exemples : code vulnérable jamais exécuté, package présent mais non utilisé
 
+Consulter les CVEs déférées et false positives approuvées :
+**Vulnerability Management → Workload CVEs → onglet Deferred** ou **onglet False positives**
+
+## Snooze — Platform et Node CVEs (mécanisme distinct)
+
+Le **snooze** s'applique aux CVEs **platform** et **node** (pas workload). Différence clé avec le deferral :
+
+| | Deferral (workload) | Snooze (platform/node) |
+|---|---|---|
+| Approbation requise | Oui (2 rôles) | **Non** — effet immédiat |
+| Durées | 2s / 30j / 90j / indéfini | 1j / 1 sem / 2 sem / 1 mois / indéfini |
+| Activation | Activée par défaut | **Non activée par défaut** (UI et API) |
+| Portée | Images / déploiements | Nœuds / plateforme |
+
+> **Point clé examen** : le snooze platform/node est **désactivé par défaut** dans le portail et l'API — il faut l'activer explicitement avant de pouvoir l'utiliser.
+
 ---
 
 ## Résumé pour l'examen
@@ -89,3 +105,5 @@ Même workflow, mais le motif est `False positive` :
 > - Voir et gérer : **Vulnerability Management → Exception Management**
 > - CVE déférée = exclue des policies ET des rapports (sauf option explicite)
 > - 3 raisons possibles : Mitigated / Risk accepted / False positive
+> - **Snooze** (platform/node CVEs) = pas d'approbation, effet immédiat, **désactivé par défaut**
+> - Durées snooze : 1j / 1 sem / 2 sem / 1 mois / indéfini

@@ -44,6 +44,8 @@ Le network graph visualise les **flux réseau réels** observés par Collector (
 | **External → Deployment** | Entrée depuis internet (ex: LoadBalancer) |
 | **Deployment → CIDR block** | Flux vers un sous-réseau |
 
+> RHACS détecte et met en évidence automatiquement les **blocs CIDR publics connus** (Google Cloud, AWS, Microsoft Azure) comme entités externes distinctes dans le graph.
+
 ## Identifier les anomalies réseau
 
 ```

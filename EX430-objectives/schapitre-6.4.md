@@ -10,6 +10,15 @@ La sauvegarde inclut :
 - Toutes les données Central (policies, configurations, violations, CVE data)
 - Les certificats et secrets
 
+## Types d'intégrations S3 disponibles
+
+| Type dans l'UI | Quand l'utiliser |
+|---|---|
+| **Amazon S3** | AWS S3 natif avec IAM ou Access Key |
+| **S3 API Compatible** | ODF/Noobaa, MinIO, Ceph RGW — nécessite l'endpoint custom |
+
+> **Point clé examen** : pour ODF/Noobaa, choisir **"S3 API Compatible"** (pas "Amazon S3") et renseigner l'endpoint `host_base`. L'option signature V2 peut être requise selon la config ODF.
+
 ## Configurer une intégration S3
 
 ### Via l'UI

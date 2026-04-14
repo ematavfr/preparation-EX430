@@ -5,6 +5,17 @@
 - OpenShift 4.11+ (ou Kubernetes 1.24+)
 - Accès `cluster-admin`
 - Namespace `rhacs-operator` créé automatiquement par OLM
+- Architectures supportées : `amd64`, `ppc64le`, `s390x`
+
+## Sizing minimum (source : Installing guide 4.6)
+
+| Composant | CPU Request | CPU Limit | RAM Request | RAM Limit | Stockage |
+|---|---|---|---|---|---|
+| **Central** | 1.5 cores | 4 cores | 4 GiB | 8 GiB | — |
+| **Central DB** | 4 cores | 8 cores | 8 GiB | 16 GiB | **100 GiB** |
+| **Nœud (Secured Cluster)** | 3 cores min | — | 6 GiB min | — | — |
+
+> **Point clé examen** : Central DB nécessite **100 GiB** de stockage persistant — c'est la cause principale de PVC Pending si le StorageClass ne peut pas provisionner ce volume.
 
 ## Installer l'opérateur ACS via OLM
 
@@ -99,6 +110,38 @@ roxctl -e "https://$(oc get route central -n stackrox -o jsonpath='{.spec.host}'
 oc apply -f cluster-init-bundle.yaml -n stackrox
 ```
 
+## Base de données externe (optionnel)
+
+Central DB peut être remplacée par une PostgreSQL externe (RDS, CrunchyDB, etc.) :
+
+```yaml
+# Dans la CR Central (via Helm) :
+central.db.external: true
+central.db.source.connectionString: "host=mydb.example.com port=5432 dbname=central user=rhacs sslmode=require"
+```
+
+> Utilisé en production pour déléguer la HA/backup à une infra DB gérée. Non requis pour l'examen mais bon à connaître.
+
+## Upgrade automatique des Secured Clusters
+
+Pour les clusters installés par **manifest (roxctl)** — pas Helm/OLM :
+
+```bash
+# Activer l'upgrade automatique depuis l'UI :
+# Platform Configuration → Clusters → [cluster] → Enable automatic upgrades
+```
+
+Statuts d'upgrade dans l'UI :
+
+| Statut | Signification |
+|---|---|
+| `Up to date with Central` | Même version que Central |
+| `Upgrade available` | Nouvelle version disponible pour Sensor/Collector |
+| `Upgrade failed. Retry` | L'upgrade automatique a échoué |
+| `Secured cluster version is not managed` | Helm ou Operator contrôle la version |
+
+> **Helm et Operator** : l'upgrade automatique n'est **pas** disponible — il faut upgrader via Helm ou OLM.
+
 ## Déployer Secured Cluster Services
 
 ```yaml
@@ -136,3 +179,6 @@ oc get pods -n stackrox
 > - Un init bundle = utilisable sur **N** secured clusters
 > - **SecuredCluster CR** → Sensor + Collector + Admission Controller sur chaque cluster surveillé
 > - `connectivity: Online` = mise à jour automatique des feeds CVE
+> - **Sizing Central DB** : 4 cores / 8 GiB RAM / **100 GiB** stockage (PVC Pending si StorageClass insuffisante)
+> - **Nœuds Secured Cluster** : 3 cores / 6 GiB RAM minimum
+> - Upgrade automatique Sensor : disponible uniquement pour installations **manifest (roxctl)** — pas Helm/OLM

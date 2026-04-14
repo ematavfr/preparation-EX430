@@ -169,7 +169,22 @@ echo | openssl s_client -connect \
 
 ---
 
-## Renouvellement des certificats (init bundle)
+## Expiration et renouvellement des certificats internes
+
+### Bannière d'alerte dans l'UI
+
+RHACS affiche une **bannière d'information** dans le portail Central **15 jours avant** l'expiration du certificat Central.
+
+> La bannière n'apparaît **que** à partir de J-15 — ne pas attendre de la voir pour planifier le renouvellement.
+
+### Rotation automatique (Operator ≥ 4.3.4)
+
+Pour les installations via l'**Operator**, depuis RHACS **4.3.4** :
+- L'Operator **tourne automatiquement** les certificats TLS de tous les composants Central (Central, Scanner, Central DB)
+- Aucune intervention manuelle requise pour les certs internes
+- Surveiller via **Platform Configuration → System Health** → expiration dates
+
+### Renouvellement des certificats (init bundle)
 
 Les init bundles expirent (défaut : 1 an). Renouvellement :
 
@@ -191,6 +206,8 @@ oc rollout restart deployment/sensor -n stackrox
 > - `listenOnEvents` = contrôle des `exec` et `port-forward`, **pas** des créations de pods
 > - Bypass manuel : annotation `admission.stackrox.io/break-glass: "true"` sur le workload
 > - Init bundles expirent → surveiller dans System Health
+> - Bannière expiration certificat Central : apparaît **15 jours avant** la date d'expiration
+> - Operator ≥ 4.3.4 : rotation **automatique** des certs TLS internes (Central, Scanner, DB)
 > - Token API nécessaire pour `roxctl` en mode non-interactif
 > - **Certificat TLS custom** : Secret `kubernetes.io/tls` → référencer dans CR Central via `spec.central.defaultTLSSecret.name`
 > - Après changement de cert : vérifier l'état des Sensors (peuvent perdre confiance)
